@@ -139,6 +139,8 @@ dotnet test MCGame.Tests.csproj --filter "TestName"
 - 测试项目放在tests文件夹中
 - 脚本放在scripts文件夹中
 - 文档放在docs文件夹中
+- 正常的游戏代码放在src文件夹中
+- 游戏素材放在assets文件夹中
 
 ## 其他注意事项
 - 根目录中不要随便建任何的sh、md、py、csproj等文件，所有的文件建立需要放置在相关的目录中，根目录需要保持干净
