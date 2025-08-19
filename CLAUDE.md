@@ -20,16 +20,16 @@ dotnet run --project MCGame.csproj
 dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 
 # 构建测试项目
-dotnet build MCGame.Tests.csproj
+dotnet build tests/MCGame.Tests.csproj
 ```
 
 ### 测试
 ```bash
 # 运行所有测试
-dotnet test MCGame.Tests.csproj
+dotnet test tests/MCGame.Tests.csproj
 
 # 运行单个测试（示例）
-dotnet test MCGame.Tests.csproj --filter "TestName"
+dotnet test tests/MCGame.Tests.csproj --filter "TestName"
 ```
 
 ## 核心架构
@@ -123,11 +123,11 @@ dotnet test MCGame.Tests.csproj --filter "TestName"
 
 ## 依赖关系
 - **MonoGame.Framework.DesktopGL** 3.8.1.303
-- **.NET 9.0** 运行时
+- **.NET 6.0** 运行时
 - **HLSL** 着色器语言
 
 ## 构建配置
-- **目标框架**: net9.0
+- **目标框架**: net6.0
 - **目标平台**: win-x64,linux-x64
 - **发布模式**: 单文件发布，自包含
 - **GC配置**: 服务器GC，并发GC
