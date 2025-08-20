@@ -148,3 +148,4 @@ dotnet test tests/MCGame.Tests.csproj --filter "TestName"
 ## 其他注意事项
 - 根目录中不要随便建任何的sh、md、py、csproj等文件，所有的文件建立需要放置在相关的目录中，根目录需要保持干净
 - 根目录中必须保证没有其他的csproj文件，以确保dotnet命令可以找到唯一的解决方案
+- 如果是外面下载的库，项目引用务必使用对应库的nuget包来引用，严禁本地直接引用
