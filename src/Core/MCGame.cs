@@ -326,8 +326,8 @@ namespace MCGame.Core
                 _frameStopwatch.Restart();
 
                 // 处理退出
-                if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || 
-                    Keyboard.GetState().IsKeyDown(Keys.Escape))
+                if (GamePad.GetState(PlayerIndex.One).Buttons.Back == Microsoft.Xna.Framework.Input.ButtonState.Pressed || 
+                    Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.Escape))
                 {
                     Logger.Info("Exit requested by user");
                     Exit();
@@ -424,7 +424,7 @@ namespace MCGame.Core
             var keyboard = Keyboard.GetState();
             
             // F3切换调试模式
-            if (keyboard.IsKeyDown(Keys.F3) && !Keyboard.GetState().IsKeyDown(Keys.F3))
+            if (keyboard.IsKeyDown(Microsoft.Xna.Framework.Input.Keys.F3) && !Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.F3))
             {
                 _debugMode = !_debugMode;
             }
@@ -439,32 +439,32 @@ namespace MCGame.Core
             var player = _playerController.Player;
 
             // F11切换全屏
-            if (keyboard.IsKeyDown(Keys.F11) && !Keyboard.GetState().IsKeyDown(Keys.F11))
+            if (keyboard.IsKeyDown(Microsoft.Xna.Framework.Input.Keys.F11) && !Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.F11))
             {
                 _graphics.IsFullScreen = !_graphics.IsFullScreen;
                 _graphics.ApplyChanges();
             }
 
             // 调整渲染距离
-            if (keyboard.IsKeyDown(Keys.OemPlus))
+            if (keyboard.IsKeyDown(Microsoft.Xna.Framework.Input.Keys.OemPlus))
             {
                 _renderDistance = Math.Min(300f, _renderDistance + 5f);
                 _renderManager.FrustumCulling.SetMaxRenderDistance(_renderDistance);
             }
-            if (keyboard.IsKeyDown(Keys.OemMinus))
+            if (keyboard.IsKeyDown(Microsoft.Xna.Framework.Input.Keys.OemMinus))
             {
                 _renderDistance = Math.Max(50f, _renderDistance - 5f);
                 _renderManager.FrustumCulling.SetMaxRenderDistance(_renderDistance);
             }
 
             // 切换飞行模式
-            if (keyboard.IsKeyDown(Keys.F) && !Keyboard.GetState().IsKeyDown(Keys.F))
+            if (keyboard.IsKeyDown(Microsoft.Xna.Framework.Input.Keys.F) && !Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.F))
             {
                 _playerController.EnableFlying = !_playerController.EnableFlying;
             }
 
             // 重新生成世界
-            if (keyboard.IsKeyDown(Keys.R) && !Keyboard.GetState().IsKeyDown(Keys.R))
+            if (keyboard.IsKeyDown(Microsoft.Xna.Framework.Input.Keys.R) && !Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.R))
             {
                 RegenerateWorld();
             }
@@ -720,13 +720,8 @@ namespace MCGame.Core
                 }
                 catch
                 {
-                    // 如果连Console都无法使用，至少显示一个错误对话框
-                    System.Windows.Forms.MessageBox.Show(
-                        $"Application crashed:\n\n{ex.Message}\n\nCheck logs directory for more details.",
-                        "MCGame - Fatal Error",
-                        System.Windows.Forms.MessageBoxButtons.OK,
-                        System.Windows.Forms.MessageBoxIcon.Error
-                    );
+                    // 如果连Console都无法使用，就无法显示错误了
+                    // 在Linux环境中，System.Windows.Forms不可用
                 }
                 
                 Environment.Exit(1);
