@@ -69,17 +69,29 @@ namespace MCGame.Core
 
         public MCGame()
         {
-            _graphics = new GraphicsDeviceManager(this);
-            Content.RootDirectory = "Content";
-            IsMouseVisible = true;
-            
-            // 设置窗口标题
-            Window.Title = "MCGame - MonoGame Minecraft Clone";
-            
-            // 初始化性能监控
-            _frameStopwatch = new Stopwatch();
-            _renderStats = new RenderStatistics();
-            _debugMode = true;
+            try
+            {
+                Logger.Info("Initializing MCGame...");
+                
+                _graphics = new GraphicsDeviceManager(this);
+                Content.RootDirectory = "Content";
+                IsMouseVisible = true;
+                
+                // 设置窗口标题
+                Window.Title = "MCGame - MonoGame Minecraft Clone";
+                
+                // 初始化性能监控
+                _frameStopwatch = new Stopwatch();
+                _renderStats = new RenderStatistics();
+                _debugMode = true;
+                
+                Logger.Info("MCGame constructor completed successfully");
+            }
+            catch (Exception ex)
+            {
+                Logger.Fatal($"Failed to initialize MCGame: {ex.Message}", ex);
+                throw;
+            }
         }
 
         /// <summary>
@@ -87,23 +99,40 @@ namespace MCGame.Core
         /// </summary>
         protected override void Initialize()
         {
-            // 设置图形设备参数
-            ConfigureGraphics();
+            try
+            {
+                Logger.Info("Starting game initialization...");
+                
+                // 设置图形设备参数
+                Logger.Debug("Configuring graphics...");
+                ConfigureGraphics();
 
-            // 初始化对象池管理器
-            ObjectPoolManager.Initialize();
+                // 初始化对象池管理器
+                Logger.Debug("Initializing object pool manager...");
+                ObjectPoolManager.Initialize();
 
-            // 初始化世界设置
-            _worldSettings = WorldSettings.Default;
-            _worldSettings.RenderDistance = 10;
+                // 初始化世界设置
+                Logger.Debug("Setting up world settings...");
+                _worldSettings = WorldSettings.Default;
+                _worldSettings.RenderDistance = 10;
 
-            // 初始化核心系统
-            InitializeCoreSystems();
+                // 初始化核心系统
+                Logger.Debug("Initializing core systems...");
+                InitializeCoreSystems();
 
-            // 初始化输入处理
-            InitializeInput();
+                // 初始化输入处理
+                Logger.Debug("Initializing input handling...");
+                InitializeInput();
 
-            base.Initialize();
+                Logger.Info("Game initialization completed successfully");
+                
+                base.Initialize();
+            }
+            catch (Exception ex)
+            {
+                Logger.Fatal($"Failed to initialize game: {ex.Message}", ex);
+                throw;
+            }
         }
 
         /// <summary>
@@ -111,17 +140,32 @@ namespace MCGame.Core
         /// </summary>
         private void ConfigureGraphics()
         {
-            // 设置窗口大小
-            _graphics.PreferredBackBufferWidth = 1280;
-            _graphics.PreferredBackBufferHeight = 720;
-            _graphics.IsFullScreen = false;
-            _graphics.SynchronizeWithVerticalRetrace = true;
-            _graphics.GraphicsProfile = GraphicsProfile.HiDef;
-            
-            _graphics.ApplyChanges();
+            try
+            {
+                Logger.Debug("Configuring graphics device...");
+                
+                // 设置窗口大小
+                _graphics.PreferredBackBufferWidth = 1280;
+                _graphics.PreferredBackBufferHeight = 720;
+                _graphics.IsFullScreen = false;
+                _graphics.SynchronizeWithVerticalRetrace = true;
+                _graphics.GraphicsProfile = GraphicsProfile.HiDef;
+                Logger.Debug($"Set resolution to 1280x720, HiDef profile");
+                
+                _graphics.ApplyChanges();
+                Logger.Debug("Applied graphics settings");
 
-            // 设置视口
-            GraphicsDevice.Viewport = new Viewport(0, 0, 1280, 720);
+                // 设置视口
+                GraphicsDevice.Viewport = new Viewport(0, 0, 1280, 720);
+                Logger.Debug("Set viewport");
+                
+                Logger.Info("Graphics device configured successfully");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Failed to configure graphics: {ex.Message}", ex);
+                throw;
+            }
         }
 
         /// <summary>
@@ -131,20 +175,30 @@ namespace MCGame.Core
         {
             try
             {
+                Logger.Debug("Initializing core systems...");
+                
                 // 初始化方块注册表
+                Logger.Debug("Creating block registry...");
                 _blockRegistry = new BlockRegistry(GraphicsDevice);
+                Logger.Info("Block registry initialized successfully");
 
                 // 初始化区块管理器
+                Logger.Debug("Creating chunk manager...");
                 _chunkManager = new ChunkManager(GraphicsDevice, _blockRegistry, _worldSettings);
+                Logger.Info("Chunk manager initialized successfully");
 
                 // 初始化玩家控制器
+                Logger.Debug("Creating player controller...");
                 var initialPosition = new Vector3(0, 65, 0); // 在地面上方
                 _playerController = new PlayerController(GraphicsDevice, initialPosition);
+                Logger.Info($"Player controller initialized at position {initialPosition}");
 
                 // 初始化渲染管理器
+                Logger.Debug("Creating render manager...");
                 _renderManager = new RenderManager(GraphicsDevice);
 
                 // 配置渲染选项
+                Logger.Debug("Configuring rendering options...");
                 ConfigureRendering();
 
                 // 初始化ECS系统 - 暂时禁用
@@ -152,10 +206,11 @@ namespace MCGame.Core
                 // InitializeECSRendering();
 
                 _isInitialized = true;
+                Logger.Info("Core systems initialized successfully");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"初始化失败: {ex.Message}");
+                Logger.Fatal($"Failed to initialize core systems: {ex.Message}", ex);
                 throw;
             }
         }
@@ -209,22 +264,35 @@ namespace MCGame.Core
         /// </summary>
         protected override void LoadContent()
         {
-            // 创建SpriteBatch
-            _spriteBatch = new SpriteBatch(GraphicsDevice);
-
-            // 加载调试字体
             try
             {
-                _debugFont = Content.Load<SpriteFont>("DebugFont");
-            }
-            catch (Exception)
-            {
-                Console.WriteLine("无法加载调试字体，将使用默认字体");
-                _debugFont = null;
-            }
+                Logger.Info("Loading game content...");
+                
+                // 创建SpriteBatch
+                Logger.Debug("Creating SpriteBatch...");
+                _spriteBatch = new SpriteBatch(GraphicsDevice);
 
-            // 初始化内容加载
-            InitializeContent();
+                // 加载调试字体
+                Logger.Debug("Loading debug font...");
+                try
+                {
+                    _debugFont = Content.Load<SpriteFont>("DebugFont");
+                    Logger.Info("Debug font loaded successfully");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning($"Failed to load debug font: {ex.Message}");
+                    Logger.Info("Will use default rendering for debug text");
+                    _debugFont = null;
+                }
+                
+                Logger.Info("Game content loading completed successfully");
+            }
+            catch (Exception ex)
+            {
+                Logger.Fatal($"Failed to load game content: {ex.Message}", ex);
+                throw;
+            }
         }
 
         /// <summary>
@@ -232,8 +300,19 @@ namespace MCGame.Core
         /// </summary>
         private void InitializeContent()
         {
-            // 加载纹理和着色器
-            // 简化实现：预留内容加载接口
+            try
+            {
+                Logger.Debug("Initializing additional content...");
+                
+                // 加载纹理和着色器
+                // 简化实现：预留内容加载接口
+                
+                Logger.Debug("Additional content initialization completed");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Failed to initialize additional content: {ex.Message}", ex);
+            }
         }
 
         /// <summary>
@@ -241,18 +320,21 @@ namespace MCGame.Core
         /// </summary>
         protected override void Update(GameTime gameTime)
         {
-            // 开始帧计时
-            _frameStopwatch.Restart();
-
-            // 处理退出
-            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || 
-                Keyboard.GetState().IsKeyDown(Keys.Escape))
+            try
             {
-                Exit();
-            }
+                // 开始帧计时
+                _frameStopwatch.Restart();
 
-            // 处理调试模式切换
-            HandleDebugMode();
+                // 处理退出
+                if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || 
+                    Keyboard.GetState().IsKeyDown(Keys.Escape))
+                {
+                    Logger.Info("Exit requested by user");
+                    Exit();
+                }
+
+                // 处理调试模式切换
+                HandleDebugMode();
 
             if (_isInitialized)
             {
@@ -280,6 +362,13 @@ namespace MCGame.Core
             _frameStopwatch.Stop();
             _frameTime = _frameStopwatch.ElapsedMilliseconds;
             UpdateFPS(gameTime);
+            
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error in game update: {ex.Message}", ex);
+                // 不要抛出异常，让游戏继续运行
+            }
         }
 
         /// <summary>
@@ -403,19 +492,36 @@ namespace MCGame.Core
         /// </summary>
         protected override void Draw(GameTime gameTime)
         {
-            // 清空屏幕
-            GraphicsDevice.Clear(new Color(135, 206, 235)); // 天空蓝
-
-            if (_isInitialized)
+            try
             {
-                // 渲染3D场景
-                Render3DScene();
+                // 清空屏幕
+                GraphicsDevice.Clear(new Color(135, 206, 235)); // 天空蓝
 
-                // 渲染UI
-                RenderUI();
+                if (_isInitialized)
+                {
+                    // 渲染3D场景
+                    Render3DScene();
+
+                    // 渲染UI
+                    RenderUI();
+                }
+
+                base.Draw(gameTime);
             }
-
-            base.Draw(gameTime);
+            catch (Exception ex)
+            {
+                Logger.Error($"Error in game draw: {ex.Message}", ex);
+                // 尝试继续渲染，即使出错
+                try
+                {
+                    GraphicsDevice.Clear(Color.Red);
+                    base.Draw(gameTime);
+                }
+                catch
+                {
+                    // 如果连基本渲染都失败，就忽略
+                }
+            }
         }
 
         /// <summary>
@@ -570,9 +676,91 @@ namespace MCGame.Core
         [STAThread]
         static void Main()
         {
-            using (var game = new MCGame())
+            try
             {
-                game.Run();
+                // 初始化日志系统
+                Logger.Initialize();
+                Logger.Info("=== MCGame Starting ===");
+                Logger.Info($"Platform: {Environment.OSVersion}");
+                Logger.Info($"Working Directory: {Environment.CurrentDirectory}");
+                Logger.Info($"Base Directory: {AppContext.BaseDirectory}");
+                
+                // 记录系统信息
+                LogSystemInfo();
+
+                using (var game = new MCGame())
+                {
+                    Logger.Info("Starting game loop...");
+                    game.Run();
+                }
+                
+                Logger.Info("=== MCGame Exiting Normally ===");
+            }
+            catch (Exception ex)
+            {
+                // 确保在异常情况下也能记录日志
+                try
+                {
+                    Logger.Fatal($"Application crashed: {ex.Message}", ex);
+                    
+                    // 如果日志初始化失败，使用Console输出
+                    Console.WriteLine($"=== FATAL ERROR ===");
+                    Console.WriteLine($"Message: {ex.Message}");
+                    Console.WriteLine($"Type: {ex.GetType().Name}");
+                    Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                    
+                    if (ex.InnerException != null)
+                    {
+                        Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                    }
+                    
+                    Console.WriteLine("=== END ERROR ===");
+                    Console.WriteLine("Press any key to exit...");
+                    Console.ReadKey();
+                }
+                catch
+                {
+                    // 如果连Console都无法使用，至少显示一个错误对话框
+                    System.Windows.Forms.MessageBox.Show(
+                        $"Application crashed:\n\n{ex.Message}\n\nCheck logs directory for more details.",
+                        "MCGame - Fatal Error",
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Error
+                    );
+                }
+                
+                Environment.Exit(1);
+            }
+        }
+
+        private static void LogSystemInfo()
+        {
+            try
+            {
+                Logger.Info($"System Information:");
+                Logger.Info($"  OS Version: {Environment.OSVersion}");
+                Logger.Info($"  Processor Count: {Environment.ProcessorCount}");
+                Logger.Info($"  Working Set: {Environment.WorkingSet / 1024 / 1024} MB");
+                Logger.Info($"  Is 64-bit Process: {Environment.Is64BitProcess}");
+                
+                // 检查MonoGame相关
+                var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                var monogameAssemblies = assemblies.Where(a => a.FullName?.Contains("MonoGame") ?? false);
+                foreach (var asm in monogameAssemblies)
+                {
+                    Logger.Info($"  MonoGame Assembly: {asm.FullName}");
+                }
+                
+                // 检查ECS相关
+                var ecsAssemblies = assemblies.Where(a => a.FullName?.Contains("Friflo") ?? false);
+                foreach (var asm in ecsAssemblies)
+                {
+                    Logger.Info($"  ECS Assembly: {asm.FullName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Failed to log system info: {ex.Message}");
             }
         }
     }
