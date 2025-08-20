@@ -21,7 +21,7 @@ namespace MCGame.Chunks
     public class ChunkManager
     {
         // 区块存储
-        private readonly Dictionary<ChunkPosition, Chunk> _loadedChunks;
+        private readonly ConcurrentDictionary<ChunkPosition, Chunk> _loadedChunks;
         private readonly SimpleObjectPool<Chunk> _chunkPool;
 
         // 异步生成队列
@@ -64,7 +64,7 @@ namespace MCGame.Chunks
             _worldSeed = worldSettings.Seed;
 
             // 初始化存储
-            _loadedChunks = new Dictionary<ChunkPosition, Chunk>();
+            _loadedChunks = new ConcurrentDictionary<ChunkPosition, Chunk>();
             _generationQueue = new ConcurrentQueue<ChunkPosition>();
             _meshingQueue = new ConcurrentQueue<Chunk>();
 
@@ -241,6 +241,7 @@ namespace MCGame.Chunks
         {
             var chunksToUnload = new List<ChunkPosition>();
 
+            // ConcurrentDictionary是线程安全的，可以直接遍历
             foreach (var chunkPos in _loadedChunks.Keys)
             {
                 var distance = GetChunkDistance(playerChunkPos, chunkPos);
@@ -261,6 +262,7 @@ namespace MCGame.Chunks
         /// </summary>
         private void UpdateChunkNeighbors()
         {
+            // ConcurrentDictionary是线程安全的，可以直接遍历
             foreach (var chunk in _loadedChunks.Values)
             {
                 var neighbors = new Chunk[3, 3, 3];
@@ -353,7 +355,7 @@ namespace MCGame.Chunks
             if (_loadedChunks.TryGetValue(position, out var chunk))
             {
                 chunk.Unload();
-                _loadedChunks.Remove(position);
+                _loadedChunks.TryRemove(position, out _);
                 _chunkPool.Return(chunk);
             }
         }
@@ -401,6 +403,7 @@ namespace MCGame.Chunks
         {
             var visibleChunks = new List<Chunk>();
 
+            // ConcurrentDictionary是线程安全的，可以直接遍历
             foreach (var chunk in _loadedChunks.Values)
             {
                 if (chunk.IsLoaded && chunk.IsMeshGenerated && frustumCulling.IsChunkVisible(chunk))
