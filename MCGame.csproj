@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>MCGame</AssemblyName>
+    <RootNamespace>MCGame</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    
+    <!-- 版本信息 -->
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Product>MCGame</Product>
+    <Description>基于MonoGame的类Minecraft游戏，使用ECS系统架构</Description>
+    <Company>MCGame Team</Company>
+    <Copyright>Copyright © 2024 MCGame Team</Copyright>
+  </PropertyGroup>
+
+  <!-- 排除测试文件 -->
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+    <Compile Remove="SimpleTest/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.1.303" />
+    <!-- 暂时移除内容构建器包，避免构建错误 -->
+    <!-- <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.1.303" /> -->
+  </ItemGroup>
+
+  <!-- Friflo.ECS NuGet包引用 -->
+  <ItemGroup>
+    <PackageReference Include="Friflo.Engine.ECS" Version="3.4.2" />
+  </ItemGroup>
+
+  
+  <!-- 暂时注释掉内容引用，避免构建错误 -->
+  <!--
+  <ItemGroup>
+    <MonoGameContentReference Include="Content\Content.mgcb" />
+  </ItemGroup>
+  -->
+
+  <ItemGroup>
+    <None Include="icon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="src\Content\" />
+  </ItemGroup>
+
+  <!-- 编译设置 -->
+  <PropertyGroup>
+    <Optimize>true</Optimize>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <!-- 发布设置 -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
+  <!-- 性能优化 -->
+  <PropertyGroup>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <RetainVMGarbageCollection>true</RetainVMGarbageCollection>
+  </PropertyGroup>
+</Project>
