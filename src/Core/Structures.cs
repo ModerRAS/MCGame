@@ -34,7 +34,7 @@ namespace MCGame.Core
             return new Vector3(X * chunkSize, Y * chunkSize, Z * chunkSize);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is ChunkPosition other && Equals(other);
         }
@@ -92,7 +92,7 @@ namespace MCGame.Core
 
         public static BlockData Empty => new BlockData(BlockType.Air, 0);
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is BlockData other && Equals(other);
         }

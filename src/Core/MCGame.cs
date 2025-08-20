@@ -6,6 +6,15 @@ using MCGame.Chunks;
 using MCGame.Player;
 using MCGame.Rendering;
 using MCGame.Utils;
+// using MCGame.ECS;
+// using MCGame.ECS.Managers;
+// using MCGame.ECS.Systems;
+// using Friflo.Engine.ECS;
+// using Friflo.Engine.ECS.Systems;
+// using MCGame.ECS.Components;
+// using Pos = MCGame.ECS.Components.Position;
+// using Rot = MCGame.ECS.Components.Rotation;
+// using PlayerComp = MCGame.ECS.Components.Player;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -30,10 +39,19 @@ namespace MCGame.Core
         private PlayerController _playerController;
         private RenderManager _renderManager;
 
+        // ECS系统 - 暂时禁用
+        // private ECSWorld _ecsWorld;
+        // private ECSBlockManager _ecsBlockManager;
+        // private ECSChunkManager _ecsChunkManager;
+        // private SystemRoot _systemRoot;
+        // private ECSRenderManager _ecsRenderManager;
+        // private PerformanceBenchmarkSystem _benchmarkSystem;
+
         // 游戏状态
         private WorldSettings _worldSettings;
         private bool _isInitialized;
         private bool _debugMode;
+        private bool _ecsEnabled;
 
         // 性能监控
         private Stopwatch _frameStopwatch;
@@ -43,12 +61,10 @@ namespace MCGame.Core
         private float _fpsTimer;
 
         // 调试信息
-        private string _debugInfo;
         private RenderStatistics _renderStats;
         private ChunkManagerStats _chunkStats;
 
         // 相机参数
-        private float _fieldOfView = MathHelper.PiOver4;
         private float _renderDistance = 150f;
 
         public MCGame()
@@ -131,6 +147,10 @@ namespace MCGame.Core
                 // 配置渲染选项
                 ConfigureRendering();
 
+                // 初始化ECS系统 - 暂时禁用
+                // InitializeECS();
+                // InitializeECSRendering();
+
                 _isInitialized = true;
             }
             catch (Exception ex)
@@ -164,6 +184,8 @@ namespace MCGame.Core
             );
         }
 
+     
+    
         /// <summary>
         /// 初始化输入处理
         /// </summary>
@@ -176,7 +198,7 @@ namespace MCGame.Core
         /// <summary>
         /// 处理文本输入
         /// </summary>
-        private void HandleTextInput(object sender, TextInputEventArgs e)
+        private void HandleTextInput(object? sender, TextInputEventArgs e)
         {
             // 处理控制台命令或其他文本输入
             // 简化实现：预留接口
@@ -242,10 +264,12 @@ namespace MCGame.Core
 
                 // 更新相机
                 UpdateCamera();
-
+                
+  
                 // 更新渲染统计
                 UpdateRenderStats();
-            }
+
+              }
 
             // 处理特殊输入
             HandleSpecialInput();
@@ -286,6 +310,7 @@ namespace MCGame.Core
             _chunkStats = _chunkManager.GetStats();
         }
 
+  
         /// <summary>
         /// 更新FPS
         /// </summary>
@@ -354,7 +379,8 @@ namespace MCGame.Core
             {
                 RegenerateWorld();
             }
-        }
+
+                }
 
         /// <summary>
         /// 重新生成世界
@@ -428,6 +454,7 @@ namespace MCGame.Core
         /// </summary>
         private void RenderDebugInfo()
         {
+                  
             var debugLines = new List<string>
             {
                 $"MCGame Debug Mode",
@@ -471,7 +498,7 @@ namespace MCGame.Core
 
             var centerX = GraphicsDevice.Viewport.Width / 2;
             var centerY = GraphicsDevice.Viewport.Height / 2;
-            var crosshairSize = 10;
+            const int crosshairSize = 10;
 
             _spriteBatch.Begin();
 
@@ -492,6 +519,7 @@ namespace MCGame.Core
             _renderManager?.Dispose();
             _spriteBatch?.Dispose();
             
+                    
             base.UnloadContent();
         }
 

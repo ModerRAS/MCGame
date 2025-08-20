@@ -28,7 +28,7 @@ namespace MCGame.Utils
         /// <param name="reset">对象重置方法</param>
         /// <param name="initialSize">初始池大小</param>
         /// <param name="maxSize">最大池大小</param>
-        public SimpleObjectPool(Func<T> factory, Action<T> reset = null, int initialSize = 10, int maxSize = 100)
+        public SimpleObjectPool(Func<T> factory, Action<T>? reset = null, int initialSize = 10, int maxSize = 100)
         {
             _factory = factory ?? throw new ArgumentNullException(nameof(factory));
             _reset = reset;
