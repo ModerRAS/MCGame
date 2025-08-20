@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-这是一个基于MonoGame框架的类Minecraft游戏，实现了体素化世界渲染、柏林噪声地形生成和第一人称游戏体验。项目采用C# 10.0和.NET 6.0开发。
+这是一个基于MonoGame框架的类Minecraft游戏，实现了体素化世界渲染、柏林噪声地形生成和第一人称游戏体验。项目采用C# 13.0和.NET 9.0开发。
 
 ## 常用命令
 
@@ -16,8 +16,11 @@ dotnet build MCGame.csproj
 # 运行游戏
 dotnet run --project MCGame.csproj
 
-# 发布游戏
+# 发布游戏 - Windows版本
 dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+
+# 发布游戏 - Linux版本
+dotnet publish -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true
 
 # 构建测试项目
 dotnet build tests/MCGame.Tests.csproj
@@ -123,11 +126,11 @@ dotnet test tests/MCGame.Tests.csproj --filter "TestName"
 
 ## 依赖关系
 - **MonoGame.Framework.DesktopGL** 3.8.1.303
-- **.NET 6.0** 运行时
+- **.NET 9.0** 运行时
 - **HLSL** 着色器语言
 
 ## 构建配置
-- **目标框架**: net6.0
+- **目标框架**: net9.0
 - **目标平台**: win-x64,linux-x64
 - **发布模式**: 单文件发布，自包含
 - **GC配置**: 服务器GC，并发GC

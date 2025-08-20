@@ -1,0 +1,71 @@
+{
+  "runner": {
+    "version": "1.0.0",
+    "description": "MCGame 测试运行器配置"
+  },
+  "testCategories": {
+    "unit": {
+      "name": "单元测试",
+      "path": "tests/Unit",
+      "description": "测试单个组件的功能",
+      "timeout": "00:05:00",
+      "required": true
+    },
+    "integration": {
+      "name": "集成测试",
+      "path": "tests/Integration",
+      "description": "测试组件之间的交互",
+      "timeout": "00:10:00",
+      "required": true
+    },
+    "performance": {
+      "name": "性能测试",
+      "path": "tests/Performance",
+      "description": "测试系统性能指标",
+      "timeout": "00:15:00",
+      "required": false,
+      "configuration": "Release"
+    }
+  },
+  "coverage": {
+    "enabled": true,
+    "format": "cobertura",
+    "output": "coverage.xml",
+    "thresholds": {
+      "line": 70,
+      "branch": 60,
+      "method": 80
+    }
+  },
+  "reporting": {
+    "enabled": true,
+    "formats": ["trx", "html", "markdown"],
+    "outputDirectory": "TestResults",
+    "includeSourceInfo": true
+  },
+  "performance": {
+    "enabled": true,
+    "baseline": {
+      "unitTestExecutionTime": 5000,
+      "integrationTestExecutionTime": 10000,
+      "memoryUsageMB": 100
+    },
+    "thresholds": {
+      "executionTimeIncreasePercent": 20,
+      "memoryUsageIncreasePercent": 30
+    }
+  },
+  "environment": {
+    "variables": {
+      "TEST_SEED": "12345",
+      "TEST_WORLD_SIZE": "10",
+      "TEST_PLAYER_POSITION": "0,64,0"
+    }
+  },
+  "notifications": {
+    "enabled": false,
+    "onFailure": true,
+    "onSuccess": false,
+    "webhook": ""
+  }
+}
