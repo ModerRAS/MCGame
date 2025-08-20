@@ -136,21 +136,15 @@ namespace MCGame.ECS.Utils
 
         /// <summary>
         /// 批量删除实体
+        /// 使用Friflo ECS的正确删除方法
         /// </summary>
         public void DeleteEntitiesBatch(Entity[] entities)
         {
-            // 由于Friflo ECS的删除方法还在研究中，这里先标记为删除
-            // 实际实现需要根据Friflo ECS的API进行调整
-            
-            // 目前只能将实体设为不可见
-            var visibility = ArrayPool<bool>.Get(entities.Length);
+            // 使用Friflo ECS的正确删除方法
             for (int i = 0; i < entities.Length; i++)
             {
-                visibility[i] = false;
+                entities[i].DeleteEntity();
             }
-            
-            UpdateBlockVisibilityBatch(entities, visibility);
-            ArrayPool<bool>.Release(visibility);
             
             _cacheManager.MarkChanged();
         }

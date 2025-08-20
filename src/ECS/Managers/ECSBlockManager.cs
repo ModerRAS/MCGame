@@ -11,6 +11,19 @@ namespace MCGame.ECS.Managers
     /// ECS方块管理器
     /// 使用ECS系统管理方块实体，提供高性能的方块操作
     /// 简化实现：专注于方块的ECS化管理和批量操作
+    /// 
+    /// 主要功能：
+    /// - 方块的创建、更新、删除操作
+    /// - 基于位置的快速查找
+    /// - 区块内方块的组织和管理
+    /// - 批量操作优化
+    /// - 射线检测和范围查询
+    /// 
+    /// 性能优化：
+    /// - 使用字典进行O(1)时间复杂度的位置查找
+    /// - 批量操作减少内存分配
+    /// - 按区块组织方块数据
+    /// - 自动清理空气方块优化存储
     /// </summary>
     public class ECSBlockManager
     {
@@ -39,7 +52,18 @@ namespace MCGame.ECS.Managers
 
         /// <summary>
         /// 设置方块
+        /// 如果位置已存在方块，则更新其类型；否则创建新的方块实体
+        /// 简化实现：使用字典快速查找，避免重复创建
         /// </summary>
+        /// <param name="blockType">方块类型，使用BlockType枚举定义</param>
+        /// <param name="position">世界坐标位置，使用Vector3表示</param>
+        /// <returns>创建或更新的方块实体，可用于后续操作</returns>
+        /// <remarks>
+        /// 性能特点：
+        /// - 使用字典查找，时间复杂度O(1)
+        /// - 自动更新可见性组件
+        /// - 同时维护位置字典和区块字典
+        /// </remarks>
         public Entity SetBlock(BlockType blockType, Vector3 position)
         {
             var chunkPos = new ChunkPosition(
@@ -89,8 +113,15 @@ namespace MCGame.ECS.Managers
         }
 
         /// <summary>
-        /// 获取方块
+        /// 获取指定位置的方块类型
         /// </summary>
+        /// <param name="position">世界坐标位置</param>
+        /// <returns>方块类型，如果位置没有方块则返回null</returns>
+        /// <remarks>
+        /// 性能特点：
+        /// - 使用字典查找，时间复杂度O(1)
+        /// - 快速查询而不需要遍历所有实体
+        /// </remarks>
         public BlockType? GetBlock(Vector3 position)
         {
             if (_blockEntities.TryGetValue(position, out var entity))
@@ -101,8 +132,18 @@ namespace MCGame.ECS.Managers
         }
 
         /// <summary>
-        /// 移除方块
+        /// 移除指定位置的方块
+        /// 删除方块实体并清理相关数据结构
         /// </summary>
+        /// <param name="position">要移除的方块位置</param>
+        /// <returns>成功移除返回true，位置没有方块返回false</returns>
+        /// <remarks>
+        /// 清理操作：
+        /// - 从位置字典中移除
+        /// - 从区块字典中移除
+        /// - 删除ECS实体
+        /// - 自动标记相关区块为脏状态
+        /// </remarks>
         public bool RemoveBlock(Vector3 position)
         {
             if (_blockEntities.TryGetValue(position, out var entity))
@@ -121,8 +162,8 @@ namespace MCGame.ECS.Managers
                     chunkEntityList.Remove(entity);
                 }
 
-                // TODO: 找到Friflo ECS的正确删除方法
-              // _store.DeleteEntity(entity.Id); // 方法不存在
+                // 使用Friflo ECS的正确删除方法
+                entity.DeleteEntity();
                 return true;
             }
             return false;
@@ -130,7 +171,23 @@ namespace MCGame.ECS.Managers
 
         /// <summary>
         /// 批量设置方块（高性能）
+        /// 使用数组批量操作，减少内存分配和GC压力
+        /// 简化实现：使用简单的循环和数组操作
         /// </summary>
+        /// <param name="blockTypes">方块类型数组，长度必须与positions相同</param>
+        /// <param name="positions">位置数组，长度必须与blockTypes相同</param>
+        /// <remarks>
+        /// 性能优化：
+        /// - 批量创建实体，减少单独操作的开销
+        /// - 预分配结果数组，避免动态扩容
+        /// - 自动处理重复位置的方块替换
+        /// - 同时维护所有索引结构
+        /// 
+        /// 注意事项：
+        /// - 两个数组长度必须相同
+        /// - 建议用于大量方块的批量操作
+        /// - 自动删除已存在的方块实体
+        /// </remarks>
         public void SetBlocksBatch(BlockType[] blockTypes, Vector3[] positions)
         {
             var newEntities = new List<Entity>();
@@ -147,8 +204,8 @@ namespace MCGame.ECS.Managers
                 // 如果已存在方块，先删除
                 if (_blockEntities.TryGetValue(position, out var existingEntity))
                 {
-                    // TODO: 找到Friflo ECS的正确删除方法
-                      // _store.DeleteEntity(existingEntity.Id); // 方法不存在
+                    // 使用Friflo ECS的正确删除方法
+                    existingEntity.DeleteEntity();
                     _blockEntities.Remove(position);
                 }
 
@@ -210,7 +267,13 @@ namespace MCGame.ECS.Managers
 
         /// <summary>
         /// 射线检测
+        /// 从指定位置和方向发射射线，检测碰到的第一个方块
+        /// 简化实现：使用简单的包围盒相交检测
         /// </summary>
+        /// <param name="origin">射线起点</param>
+        /// <param name="direction">射线方向</param>
+        /// <param name="maxDistance">最大检测距离</param>
+        /// <returns>碰到的方块实体，如果没有则返回null</returns>
         public Entity? Raycast(Vector3 origin, Vector3 direction, float maxDistance)
         {
             Entity closestEntity = default;
@@ -273,8 +336,8 @@ namespace MCGame.ECS.Managers
         {
             foreach (var block in _blockQuery.Entities)
             {
-                // TODO: 找到Friflo ECS的正确删除方法
-                  // _store.DeleteEntity(block.Id); // 方法不存在
+                // 使用Friflo ECS的正确删除方法
+                    block.DeleteEntity();
             }
             
             _blockEntities.Clear();
@@ -283,7 +346,10 @@ namespace MCGame.ECS.Managers
 
         /// <summary>
         /// 优化存储（移除空气方块）
+        /// 清理不必要的空气方块实体，减少内存使用
+        /// 简化实现：简单的遍历和删除操作
         /// </summary>
+        /// <remarks>空气方块通常不需要作为实体存储，可以通过区块数据推断</remarks>
         public void OptimizeStorage()
         {
             var positionsToRemove = new List<Vector3>();
@@ -295,8 +361,8 @@ namespace MCGame.ECS.Managers
                 {
                     var position = block.GetComponent<MCGame.ECS.Components.Position>().Value;
                     positionsToRemove.Add(position);
-                    // TODO: 找到Friflo ECS的正确删除方法
-                  // _store.DeleteEntity(block.Id); // 方法不存在
+                    // 使用Friflo ECS的正确删除方法
+                    block.DeleteEntity();
                 }
             }
 

@@ -8,8 +8,34 @@ namespace MCGame.ECS.Utils
 {
     /// <summary>
     /// ECS性能监控器
-    /// 监控ECS系统的性能指标，提供实时统计和历史数据
+    /// 监控ECS系统的性能指标，提供实时统计和历史数据分析
     /// 简化实现：专注于关键性能指标的收集和分析
+    /// 
+    /// 主要功能：
+    /// - 实时性能指标收集
+    /// - 历史数据记录和分析
+    /// - 性能警告和阈值检测
+    /// - 详细性能报告生成
+    /// - 自定义性能计数器
+    /// 
+    /// 监控指标：
+    /// - 帧率统计（FPS、帧时间）
+    /// - 实体管理（创建、删除、总数）
+    /// - 系统性能（更新时间、查询时间）
+    /// - 内存使用（对象池、缓存、GC）
+    /// - 渲染性能（DrawCall、三角形、可见实体）
+    /// 
+    /// 性能优化：
+    /// - 使用Stopwatch进行高精度计时
+    /// - 对象池减少内存分配
+    /// - 高效的计数器更新机制
+    /// - 可配置的历史数据大小
+    /// 
+    /// 使用场景：
+    /// - 开发阶段的性能分析
+    /// - 运行时的性能监控
+    /// - 性能问题的诊断和调试
+    /// - 优化效果的验证
     /// </summary>
     public class ECSPerformanceMonitor
     {
@@ -27,7 +53,30 @@ namespace MCGame.ECS.Utils
 
         /// <summary>
         /// 构造函数
+        /// 初始化性能监控器，设置默认计数器和历史记录
         /// </summary>
+        /// <param name="objectPool">对象池引用，用于监控对象池使用情况</param>
+        /// <param name="maxHistorySize">历史数据最大大小，默认1000条记录</param>
+        /// <remarks>
+        /// 初始化过程：
+        /// 1. 保存对象池引用
+        /// 2. 设置历史数据大小限制
+        /// 3. 创建高精度计时器
+        /// 4. 初始化默认性能计数器
+        /// 
+        /// 默认计数器包括：
+        /// - EntityStore.Count: 实体总数
+        /// - EntityStore.Creations: 实体创建数量
+        /// - EntityStore.Deletions: 实体删除数量
+        /// - System.UpdateTime: 系统更新时间
+        /// - System.QueryTime: 查询时间
+        /// - System.RenderTime: 渲染时间
+        /// - Memory.PoolUsage: 对象池使用率
+        /// - Memory.CacheHitRate: 缓存命中率
+        /// - Rendering.DrawCalls: DrawCall数量
+        /// - Rendering.Triangles: 三角形数量
+        /// - Rendering.VisibleEntities: 可见实体数量
+        /// </remarks>
         public ECSPerformanceMonitor(ECSObjectPool objectPool, int maxHistorySize = 1000)
         {
             _objectPool = objectPool ?? throw new ArgumentNullException(nameof(objectPool));
@@ -129,7 +178,31 @@ namespace MCGame.ECS.Utils
 
         /// <summary>
         /// 记录操作耗时
+        /// 自动测量指定操作的执行时间并记录到性能计数器
+        /// 简化实现：使用Stopwatch进行简单的时间测量
         /// </summary>
+        /// <param name="operationName">操作名称，用于生成计数器键</param>
+        /// <param name="operation">要执行的操作</param>
+        /// <remarks>
+        /// 功能特点：
+        /// - 自动生成形如"Operation.{operationName}.Time"的计数器键
+        /// - 使用高精度Stopwatch进行计时
+        /// - 自动处理异常情况，确保计时器停止
+        /// - 支持任意操作的耗时测量
+        /// 
+        /// 使用示例：
+        /// <code>
+        /// performanceMonitor.RecordOperationTime("BlockCreation", () => {
+        ///     // 执行方块创建操作
+        ///     var entities = optimizer.CreateBlocksBatch(blockTypes, positions);
+        /// });
+        /// </code>
+        /// 
+        /// 性能优化：
+        /// - 最小化计时开销
+        /// - 确保资源的正确释放
+        /// - 避免重复的计数器创建
+        /// </remarks>
         public void RecordOperationTime(string operationName, Action operation)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -194,7 +267,18 @@ namespace MCGame.ECS.Utils
 
         /// <summary>
         /// 获取性能警告
+        /// 分析当前性能数据，生成潜在问题的警告信息
+        /// 简化实现：基于预设阈值进行简单检查
         /// </summary>
+        /// <returns>性能警告列表，如果没有警告则返回空列表</returns>
+        /// <remarks>
+        /// 检查项目：
+        /// - 帧时间是否超过16.67ms（60FPS）
+        /// - FPS是否低于60
+        /// - 实体数量是否过多
+        /// - 查询时间是否过长
+        /// - DrawCall数量是否过多
+        /// </remarks>
         public List<string> GetPerformanceWarnings()
         {
             var warnings = ListPool<string>.Get();

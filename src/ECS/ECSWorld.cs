@@ -14,6 +14,39 @@ namespace MCGame.ECS
     /// 管理ECS实体、组件和系统的生命周期
     /// 简化实现：专注于方块、区块和玩家的ECS化管理
     /// 性能优化：集成对象池、查询缓存和性能监控
+    /// 
+    /// 主要功能：
+    /// - 实体和组件的生命周期管理
+    /// - 系统的初始化和更新
+    /// - 性能优化组件的集成
+    /// - 游戏世界的状态管理
+    /// - 玩家和实体的创建
+    /// 
+    /// 核心组件：
+    /// - EntityStore: 实体存储和管理
+    /// - SystemRoot: 系统管理和执行
+    /// - ECSObjectPool: 对象池优化
+    /// - QueryCacheManager: 查询缓存管理
+    /// - BatchOperationOptimizer: 批量操作优化
+    /// - ECSPerformanceMonitor: 性能监控
+    /// 
+    /// 系统架构：
+    /// 1. 初始化阶段：创建存储、系统、优化组件
+    /// 2. 运行阶段：更新系统、监控性能、管理实体
+    /// 3. 清理阶段：释放资源、清理实体、重置状态
+    /// 
+    /// 性能优化策略：
+    /// - 使用对象池减少内存分配
+    /// - 查询缓存避免重复计算
+    /// - 批量操作提高处理效率
+    /// - 实时性能监控和警告
+    /// - 智能的实体管理
+    /// 
+    /// 使用场景：
+    /// - 游戏主循环的核心管理器
+    /// - 实体和系统的统一入口
+    /// - 性能监控和优化
+    /// - 游戏状态的管理
     /// </summary>
     public class ECSWorld : IDisposable
     {
@@ -52,7 +85,31 @@ namespace MCGame.ECS
 
         /// <summary>
         /// 构造函数
+        /// 初始化ECS世界的所有组件和系统
         /// </summary>
+        /// <remarks>
+        /// 初始化过程：
+        /// 1. 创建实体存储（EntityStore）
+        /// 2. 创建系统根节点（SystemRoot）
+        /// 3. 初始化性能优化组件：
+        ///    - ECSObjectPool: 对象池
+        ///    - QueryCacheManager: 查询缓存
+        ///    - BatchOperationOptimizer: 批量操作
+        ///    - ECSPerformanceMonitor: 性能监控
+        /// 4. 初始化游戏系统：
+        ///    - PlayerInputSystem: 玩家输入
+        ///    - PlayerMovementSystem: 玩家移动
+        ///    - PhysicsSystem: 物理系统
+        ///    - CameraSystem: 相机系统
+        ///    - VisibilitySystem: 可见性系统
+        ///    - ChunkStateSystem: 区块状态
+        /// 5. 创建实体查询：
+        ///    - 区块查询（Chunk）
+        ///    - 方块查询（Block）
+        ///    - 玩家查询（Player）
+        /// 
+        /// 注意：默认玩家实体不在构造函数中创建，由主游戏创建
+        /// </remarks>
         public ECSWorld()
         {
             // 创建实体存储
@@ -81,7 +138,18 @@ namespace MCGame.ECS
 
         /// <summary>
         /// 初始化系统
+        /// 创建并注册所有ECS系统，设置系统执行顺序
+        /// 简化实现：使用固定的系统顺序和基础配置
         /// </summary>
+        /// <remarks>
+        /// 系统执行顺序：
+        /// 1. PlayerInputSystem - 输入处理
+        /// 2. PlayerMovementSystem - 玩家移动
+        /// 3. PhysicsSystem - 物理模拟
+        /// 4. CameraSystem - 相机更新
+        /// 5. VisibilitySystem - 可见性计算
+        /// 6. ChunkStateSystem - 区块状态
+        /// </remarks>
         private void InitializeSystems()
         {
             // 输入系统
@@ -165,7 +233,13 @@ namespace MCGame.ECS
 
         /// <summary>
         /// 批量创建方块实体（优化性能）
+        /// 使用批量操作优化器创建多个方块实体，减少内存分配
+        /// 简化实现：委托给BatchOperationOptimizer处理
         /// </summary>
+        /// <param name="blockTypes">方块类型数组</param>
+        /// <param name="positions">位置数组</param>
+        /// <returns>创建的实体数组</returns>
+        /// <remarks>两个数组长度必须相同，性能优于逐个创建</remarks>
         public Entity[] CreateBlockEntitiesBatch(BlockType[] blockTypes, Vector3[] positions)
         {
             // 使用性能优化的批量创建方法
@@ -211,7 +285,40 @@ namespace MCGame.ECS
 
         /// <summary>
         /// 更新世界
+        /// 执行所有ECS系统的更新逻辑，包含性能监控和错误处理
+        /// 简化实现：简单的系统更新和性能统计
         /// </summary>
+        /// <param name="gameTime">游戏时间信息，包含总时间和增量时间</param>
+        /// <remarks>
+        /// 执行流程：
+        /// 1. 开始性能监控（BeginFrame）
+        /// 2. 记录实体数量统计
+        /// 3. 更新所有ECS系统：
+        ///    - PlayerInputSystem: 处理输入
+        ///    - PlayerMovementSystem: 更新移动
+        ///    - PhysicsSystem: 物理模拟
+        ///    - CameraSystem: 相机更新
+        ///    - VisibilitySystem: 可见性计算
+        ///    - ChunkStateSystem: 区块状态
+        /// 4. 记录系统更新时间
+        /// 5. 结束性能监控（EndFrame）
+        /// 
+        /// 性能监控：
+        /// - 记录每帧的执行时间
+        /// - 统计实体数量变化
+        /// - 监控系统性能瓶颈
+        /// - 生成性能警告
+        /// 
+        /// 错误处理：
+        /// - 使用try-finally确保性能监控正确结束
+        /// - 系统更新异常会被捕获但不会中断游戏循环
+        /// - 性能监控器会记录异常情况
+        /// 
+        /// 优化策略：
+        /// - 使用UpdateTick进行系统同步
+        /// - 避免不必要的查询和计算
+        /// - 利用缓存机制减少重复工作
+        /// </remarks>
         public void Update(GameTime gameTime)
         {
             // 开始性能监控
