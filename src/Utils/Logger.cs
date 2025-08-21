@@ -162,6 +162,11 @@ namespace MCGame.Utils
     {
         private static ILogger _instance;
         private static readonly object _lock = new object();
+        
+        /// <summary>
+        /// 获取日志系统是否已初始化
+        /// </summary>
+        public static bool IsInitialized => _instance != null;
 
         public static ILogger Instance
         {

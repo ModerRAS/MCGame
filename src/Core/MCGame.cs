@@ -29,7 +29,7 @@ namespace MCGame.Core
     public class MCGame : Game
     {
         // MonoGame组件
-        private GraphicsDeviceManager _graphics;
+        private CustomGraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
         private SpriteFont _debugFont;
 
@@ -73,7 +73,18 @@ namespace MCGame.Core
             {
                 Logger.Info("Initializing MCGame...");
                 
-                _graphics = new GraphicsDeviceManager(this);
+                // 创建图形设备管理器
+                try
+                {
+                    _graphics = new CustomGraphicsDeviceManager(this);
+                    Logger.Debug("CustomGraphicsDeviceManager created successfully");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Fatal($"Failed to create CustomGraphicsDeviceManager: {ex.Message}", ex);
+                    throw;
+                }
+                
                 Content.RootDirectory = "Content";
                 IsMouseVisible = true;
                 
@@ -105,6 +116,19 @@ namespace MCGame.Core
                 
                 // 设置图形设备参数
                 Logger.Debug("Configuring graphics...");
+                
+                // 尝试使用自定义图形设备管理器
+                if (_graphics != null)
+                {
+                    bool deviceConfigured = _graphics.TryCreateDevice();
+                    if (!deviceConfigured)
+                    {
+                        Logger.Fatal("Failed to configure any graphics device");
+                        throw new InvalidOperationException("No suitable graphics device configuration found");
+                    }
+                }
+                
+                DetectGraphicsCapabilities();
                 ConfigureGraphics();
 
                 // 初始化对象池管理器
@@ -136,7 +160,68 @@ namespace MCGame.Core
         }
 
         /// <summary>
+        /// 检测图形设备能力
+        /// 简化实现：检查系统是否支持所需的图形功能
+        /// </summary>
+        private void DetectGraphicsCapabilities()
+        {
+            try
+            {
+                Logger.Debug("Detecting graphics capabilities...");
+                
+                // 检查是否有图形设备
+                if (_graphics == null)
+                {
+                    Logger.Error("CustomGraphicsDeviceManager is null");
+                    return;
+                }
+                
+                // 记录默认设置
+                Logger.Debug($"Default graphics profile: {_graphics.GraphicsProfile}");
+                Logger.Debug($"Default back buffer size: {_graphics.PreferredBackBufferWidth}x{_graphics.PreferredBackBufferHeight}");
+                
+                // 检查支持的图形配置
+                var supportedProfiles = new List<GraphicsProfile>();
+                foreach (GraphicsProfile profile in Enum.GetValues(typeof(GraphicsProfile)))
+                {
+                    try
+                    {
+                        _graphics.GraphicsProfile = profile;
+                        Logger.Debug($"Graphics profile {profile} is supported");
+                        supportedProfiles.Add(profile);
+                    }
+                    catch
+                    {
+                        Logger.Debug($"Graphics profile {profile} is not supported");
+                    }
+                }
+                
+                Logger.Info($"Supported graphics profiles: {string.Join(", ", supportedProfiles)}");
+                
+                // 恢复默认profile
+                if (supportedProfiles.Contains(GraphicsProfile.HiDef))
+                {
+                    _graphics.GraphicsProfile = GraphicsProfile.HiDef;
+                }
+                else if (supportedProfiles.Contains(GraphicsProfile.Reach))
+                {
+                    _graphics.GraphicsProfile = GraphicsProfile.Reach;
+                }
+                
+                Logger.Debug($"Selected graphics profile: {_graphics.GraphicsProfile}");
+                
+                // 记录详细的图形能力信息
+                _graphics.LogGraphicsCapabilities();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Failed to detect graphics capabilities: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 配置图形设备
+        /// 简化实现：支持图形配置降级，从HiDef到Reach profile
         /// </summary>
         private void ConfigureGraphics()
         {
@@ -149,21 +234,60 @@ namespace MCGame.Core
                 _graphics.PreferredBackBufferHeight = 720;
                 _graphics.IsFullScreen = false;
                 _graphics.SynchronizeWithVerticalRetrace = true;
-                _graphics.GraphicsProfile = GraphicsProfile.HiDef;
-                Logger.Debug($"Set resolution to 1280x720, HiDef profile");
                 
-                _graphics.ApplyChanges();
-                Logger.Debug("Applied graphics settings");
+                // 尝试使用HiDef profile，如果失败则降级到Reach
+                try
+                {
+                    _graphics.GraphicsProfile = GraphicsProfile.HiDef;
+                    Logger.Debug($"Attempting to use HiDef graphics profile");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning($"HiDef profile not supported: {ex.Message}");
+                    Logger.Debug("Falling back to Reach graphics profile");
+                    _graphics.GraphicsProfile = GraphicsProfile.Reach;
+                }
+                
+                Logger.Debug($"Set resolution to 1280x720, {_graphics.GraphicsProfile} profile");
+                
+                // 尝试应用图形设置
+                try
+                {
+                    _graphics.ApplyChanges();
+                    Logger.Debug("Applied graphics settings");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to apply graphics settings: {ex.Message}");
+                    
+                    // 尝试更基础的设置
+                    Logger.Debug("Attempting basic graphics configuration");
+                    _graphics.PreferredBackBufferWidth = 800;
+                    _graphics.PreferredBackBufferHeight = 600;
+                    _graphics.GraphicsProfile = GraphicsProfile.Reach;
+                    _graphics.SynchronizeWithVerticalRetrace = false;
+                    
+                    _graphics.ApplyChanges();
+                    Logger.Debug("Applied basic graphics settings");
+                }
 
                 // 设置视口
-                GraphicsDevice.Viewport = new Viewport(0, 0, 1280, 720);
-                Logger.Debug("Set viewport");
+                try
+                {
+                    GraphicsDevice.Viewport = new Viewport(0, 0, _graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
+                    Logger.Debug("Set viewport");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to set viewport: {ex.Message}");
+                    // 如果视口设置失败，使用默认视口
+                }
                 
-                Logger.Info("Graphics device configured successfully");
+                Logger.Info($"Graphics device configured successfully with {_graphics.GraphicsProfile} profile");
             }
             catch (Exception ex)
             {
-                Logger.Error($"Failed to configure graphics: {ex.Message}", ex);
+                Logger.Fatal($"Failed to configure graphics device: {ex.Message}", ex);
                 throw;
             }
         }
@@ -674,7 +798,7 @@ namespace MCGame.Core
         /// 应用程序入口点
         /// </summary>
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             try
             {
@@ -687,11 +811,43 @@ namespace MCGame.Core
                 
                 // 记录系统信息
                 LogSystemInfo();
-
-                using (var game = new MCGame())
+                
+                // 配置环境变量
+                EnvironmentConfig.ConfigureMonoGameEnvironment();
+                
+                // 检查命令行参数
+                var headlessMode = args.Contains("--headless") || args.Contains("-h");
+                var forceSoftwareRendering = args.Contains("--software") || args.Contains("-s");
+                
+                if (headlessMode)
                 {
-                    Logger.Info("Starting game loop...");
-                    game.Run();
+                    Logger.Info("Starting in headless mode...");
+                    RunHeadlessMode();
+                    return;
+                }
+                
+                if (forceSoftwareRendering)
+                {
+                    Logger.Info("Forcing software rendering...");
+                    Environment.SetEnvironmentVariable("LIBGL_ALWAYS_SOFTWARE", "1");
+                }
+                
+                // 尝试正常启动游戏
+                try
+                {
+                    using (var game = new MCGame())
+                    {
+                        Logger.Info("Starting game loop...");
+                        game.Run();
+                    }
+                }
+                catch (NoSuitableGraphicsDeviceException graphicsEx)
+                {
+                    Logger.Fatal($"Graphics device creation failed: {graphicsEx.Message}");
+                    Logger.Info("Attempting to start in headless mode as fallback...");
+                    
+                    // 自动切换到无头模式
+                    RunHeadlessMode();
                 }
                 
                 Logger.Info("=== MCGame Exiting Normally ===");
@@ -725,6 +881,34 @@ namespace MCGame.Core
                 }
                 
                 Environment.Exit(1);
+            }
+        }
+
+        /// <summary>
+        /// 运行无头模式
+        /// </summary>
+        private static void RunHeadlessMode()
+        {
+            Logger.Info("Starting MCGame in headless mode...");
+            
+            try
+            {
+                // 创建无头模式启动器
+                var headlessLauncher = new HeadlessGameLauncher(null);
+                headlessLauncher.StartHeadlessMode();
+                
+                // 等待用户输入以退出
+                Logger.Info("Headless mode running. Press Ctrl+C to exit.");
+                
+                // 使用Console.ReadLine来保持程序运行
+                Console.ReadLine();
+                
+                // 停止无头模式
+                headlessLauncher.StopHeadlessMode();
+            }
+            catch (Exception ex)
+            {
+                Logger.Fatal($"Failed to run headless mode: {ex.Message}", ex);
             }
         }
 
