@@ -665,18 +665,20 @@ namespace MCGame.Core
         /// </summary>
         private void RenderUI()
         {
+            if (_spriteBatch == null) return;
+            
+            _spriteBatch.Begin();
+
+            // 绘制调试信息
             if (_debugMode && _debugFont != null)
             {
-                _spriteBatch.Begin();
-
-                // 绘制调试信息
                 RenderDebugInfo();
-
-                _spriteBatch.End();
             }
 
             // 渲染十字准心
             RenderCrosshair();
+
+            _spriteBatch.End();
         }
 
         /// <summary>
@@ -724,19 +726,13 @@ namespace MCGame.Core
         /// </summary>
         private void RenderCrosshair()
         {
-            if (_spriteBatch == null) return;
-
+            // 十字准心应该在SpriteBatch.Begin()之后调用，不在这里调用Begin/End
             var centerX = GraphicsDevice.Viewport.Width / 2;
             var centerY = GraphicsDevice.Viewport.Height / 2;
-            const int crosshairSize = 10;
-
-            _spriteBatch.Begin();
 
             // 绘制十字准心
             _spriteBatch.DrawString(_debugFont ?? Content.Load<SpriteFont>("DebugFont"), "+", 
                 new Vector2(centerX - 5, centerY - 10), Color.White);
-
-            _spriteBatch.End();
         }
 
         /// <summary>
