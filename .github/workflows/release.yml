@@ -7,13 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 1.0.0)'
+        description: 'Version number (e.g., 2.1.0)'
         required: true
-        default: '1.0.0'
+        default: '2.1.0'
       release_title:
         description: 'Release title'
         required: true
-        default: 'Release v1.0.0'
+        default: '图形设备问题解决方案 v2.1.0'
       prerelease:
         description: 'Is this a prerelease?'
         type: boolean
@@ -63,25 +63,56 @@ jobs:
         $notes = @"
         # MCGame Release $tag
         
-        ## What's New
-        - ECS系统架构优化
-        - 性能监控和调试工具
-        - 完整的文档和使用指南
-        - 支持Windows和Linux平台
+        ## 🎉 主要特性
         
-        ## System Requirements
-        - .NET 9.0 Runtime
-        - OpenGL 3.3+ compatible graphics card
-        - 2GB RAM minimum
+        ### 图形设备问题解决
+        - ✅ 实现多种启动模式（正常/软件渲染/无头模式）
+        - ✅ 自动环境变量配置
+        - ✅ 智能降级机制
+        - ✅ 详细的故障排除日志
         
-        ## Installation
-        1. Download the appropriate package for your platform
-        2. Extract the archive
-        3. Run the executable:
-           - Windows: MCGame.exe
-           - Linux: ./MCGame
+        ### 新增功能
+        - 🚀 **无头模式**: 支持在无图形设备环境下运行
+        - 🔧 **软件渲染**: 强制使用软件渲染解决兼容性问题
+        - 📊 **环境检测**: 自动检测硬件加速支持
+        - 🛠️ **启动脚本**: 便捷的启动模式选择器
         
-        ## Controls
+        ### 命令行参数支持
+        - `--headless` 或 `-h`: 无头模式
+        - `--software` 或 `-s`: 强制软件渲染
+        
+        ## 🎮 使用方法
+        
+        ### 推荐方式
+        ```bash
+        启动MCGame.bat
+        ```
+        
+        ### 直接运行
+        ```bash
+        MCGame.exe              # 正常模式
+        MCGame.exe --software   # 软件渲染
+        MCGame.exe --headless   # 无头模式
+        ```
+        
+        ## 🔧 修复的问题
+        - 修复 `NoSuitableGraphicsDeviceException` 错误
+        - 支持在各种图形环境下启动
+        - 自动降级到兼容模式
+        - 完善的错误日志记录
+        
+        ## 📊 兼容性
+        - Windows 10/11 (x64)
+        - Linux (x64)
+        - 虚拟机环境
+        - 无图形设备环境
+        
+        ## 📦 包含文件
+        - MCGame.exe (Windows单文件可执行程序)
+        - 启动MCGame.bat (便捷启动脚本)
+        - 完整的源代码和文档
+        
+        ## 🎮 基础控制
         - WASD: Move
         - Mouse: Look around
         - Space: Jump
@@ -92,16 +123,21 @@ jobs:
         - +/-: Adjust render distance
         - R: Regenerate world
         
-        ## Known Issues
-        - Some edge cases in ECS entity deletion
-        - Performance may vary based on hardware
-        - Limited optimization for large worlds
+        ## 📝 详细信息
+        - 查看 [GRAPHICS_ISSUE_DIAGNOSIS.md](https://github.com/ModerRAS/MCGame/blob/master/GRAPHICS_ISSUE_DIAGNOSIS.md) 了解技术细节
+        - 查看 [README_GRAPHICS_SOLUTION.md](https://github.com/ModerRAS/MCGame/blob/master/README_GRAPHICS_SOLUTION.md) 获取使用指南
         
-        ## Technical Details
-        - Built with MonoGame 3.8.1
-        - Uses Friflo ECS for entity management
-        - Features procedural terrain generation
-        - Implements chunk-based world rendering
+        ---
+        
+        **提示**: 如果遇到启动问题，请尝试使用启动脚本选择不同的启动模式，或查看日志文件获取详细信息。
+        
+        ## 🏗️ 技术架构
+        - Built with MonoGame 3.8.1.303
+        - .NET 9.0 Runtime
+        - Custom Graphics Device Manager
+        - Environment Configuration System
+        - Headless Mode Support
+        - Advanced Logging System
         "@
         
         $notes | Out-File -FilePath ./RELEASE_NOTES.md -Encoding UTF8
