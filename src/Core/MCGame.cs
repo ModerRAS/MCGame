@@ -32,6 +32,7 @@ namespace MCGame.Core
         private CustomGraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
         private SpriteFont _debugFont;
+        private Texture2D _pixelTexture;
 
         // 核心系统
         private BlockRegistry _blockRegistry;
@@ -409,6 +410,11 @@ namespace MCGame.Core
                     Logger.Info("Will use default rendering for debug text");
                     _debugFont = null;
                 }
+
+                // 创建像素纹理用于绘制简单图形
+                Logger.Debug("Creating pixel texture...");
+                _pixelTexture = new Texture2D(GraphicsDevice, 1, 1);
+                _pixelTexture.SetData(new[] { Color.White });
                 
                 Logger.Info("Game content loading completed successfully");
             }
@@ -731,8 +737,22 @@ namespace MCGame.Core
             var centerY = GraphicsDevice.Viewport.Height / 2;
 
             // 绘制十字准心
-            _spriteBatch.DrawString(_debugFont ?? Content.Load<SpriteFont>("DebugFont"), "+", 
-                new Vector2(centerX - 5, centerY - 10), Color.White);
+            if (_debugFont != null)
+            {
+                _spriteBatch.DrawString(_debugFont, "+", 
+                    new Vector2(centerX - 5, centerY - 10), Color.White);
+            }
+            else
+            {
+                // 如果没有字体，使用简单的线条绘制十字准心
+                var lineThickness = 2;
+                var lineLength = 10;
+                
+                // 水平线
+                _spriteBatch.Draw(_pixelTexture, new Rectangle(centerX - lineLength, centerY - lineThickness/2, lineLength * 2, lineThickness), Color.White);
+                // 垂直线
+                _spriteBatch.Draw(_pixelTexture, new Rectangle(centerX - lineThickness/2, centerY - lineLength, lineThickness, lineLength * 2), Color.White);
+            }
         }
 
         /// <summary>
@@ -744,6 +764,7 @@ namespace MCGame.Core
             _chunkManager?.Dispose();
             _renderManager?.Dispose();
             _spriteBatch?.Dispose();
+            _pixelTexture?.Dispose();
             
                     
             base.UnloadContent();

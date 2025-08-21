@@ -36,6 +36,18 @@
     <PackageReference Include="Friflo.Engine.ECS" Version="3.4.2" />
   </ItemGroup>
 
+  <!-- SDL2.dll 和其他依赖项 -->
+  <ItemGroup>
+    <Content Include="$(NuGetPackageRoot)monogame.framework.desktopgl\3.8.1.303\runtimes\win-x64\native\SDL2.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="$(NuGetPackageRoot)monogame.framework.desktopgl\3.8.1.303\runtimes\win-x64\native\soft_oal.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
   
   <!-- 暂时注释掉内容引用，避免构建错误 -->
   <!--
