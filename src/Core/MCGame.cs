@@ -727,11 +727,13 @@ namespace MCGame.Core
         private void RenderCrosshair()
         {
             // 十字准心应该在SpriteBatch.Begin()之后调用，不在这里调用Begin/End
+            if (_spriteBatch == null || _debugFont == null) return;
+            
             var centerX = GraphicsDevice.Viewport.Width / 2;
             var centerY = GraphicsDevice.Viewport.Height / 2;
 
-            // 绘制十字准心
-            _spriteBatch.DrawString(_debugFont ?? Content.Load<SpriteFont>("DebugFont"), "+", 
+            // 绘制十字准心 - 只有在有字体时才绘制
+            _spriteBatch.DrawString(_debugFont, "+", 
                 new Vector2(centerX - 5, centerY - 10), Color.White);
         }
 
