@@ -50,6 +50,7 @@ namespace MCGame.Blocks
         private readonly Dictionary<BlockType, BlockDefinition> _blockDefinitions;
         private readonly Dictionary<string, BlockType> _nameToType;
         private readonly GraphicsDevice _graphicsDevice;
+        private readonly Dictionary<string, Texture2D> _textureCache;
 
         public IReadOnlyDictionary<BlockType, BlockDefinition> BlockDefinitions => _blockDefinitions;
 
@@ -58,8 +59,10 @@ namespace MCGame.Blocks
             _graphicsDevice = graphicsDevice;
             _blockDefinitions = new Dictionary<BlockType, BlockDefinition>();
             _nameToType = new Dictionary<string, BlockType>();
+            _textureCache = new Dictionary<string, Texture2D>();
 
             RegisterDefaultBlocks();
+            InitializeDefaultTextures();
         }
 
         /// <summary>
@@ -229,6 +232,69 @@ namespace MCGame.Blocks
         }
 
         /// <summary>
+        /// 初始化默认纹理
+        /// 简化实现：为每种方块类型创建基础颜色纹理
+        /// </summary>
+        private void InitializeDefaultTextures()
+        {
+            // 为每种方块类型创建一个简单的颜色纹理
+            foreach (var blockType in _blockDefinitions.Keys)
+            {
+                var definition = _blockDefinitions[blockType];
+                if (definition.Texture != null)
+                {
+                    var texture = CreateColorTexture(definition.BaseColor);
+                    _textureCache[definition.Texture] = texture;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 创建纯色纹理
+        /// </summary>
+        private Texture2D CreateColorTexture(Color color)
+        {
+            var texture = new Texture2D(_graphicsDevice, 16, 16);
+            var colorData = new Color[16 * 16];
+            
+            for (int i = 0; i < colorData.Length; i++)
+            {
+                colorData[i] = color;
+            }
+            
+            texture.SetData(colorData);
+            return texture;
+        }
+
+        /// <summary>
+        /// 获取方块纹理
+        /// </summary>
+        public Texture2D GetBlockTexture(BlockType blockType)
+        {
+            var definition = GetBlockDefinition(blockType);
+            if (definition.Texture != null && _textureCache.TryGetValue(definition.Texture, out var texture))
+            {
+                return texture;
+            }
+            
+            // 返回默认纹理
+            return GetDefaultTexture();
+        }
+
+        /// <summary>
+        /// 获取默认纹理
+        /// </summary>
+        private Texture2D GetDefaultTexture()
+        {
+            if (!_textureCache.TryGetValue("default", out var defaultTexture))
+            {
+                defaultTexture = CreateColorTexture(Color.White);
+                _textureCache["default"] = defaultTexture;
+            }
+            return defaultTexture;
+        }
+
+        /// <summary>
         /// 注册方块类型
         /// </summary>
         public void RegisterBlock(BlockType type, BlockDefinition definition)
@@ -351,7 +417,19 @@ namespace MCGame.Blocks
                 return false;
 
             // 如果相邻方块是透明方块，则当前方块面可见
-            return adjacentBlock == BlockType.Air;
+            // 这里需要通过BlockRegistry实例来检查方块透明度，但由于是静态方法，我们使用简化的透明方块检查
+            return IsTransparentBlock(adjacentBlock);
+        }
+
+        /// <summary>
+        /// 检查方块是否透明（简化实现）
+        /// </summary>
+        private static bool IsTransparentBlock(BlockType blockType)
+        {
+            return blockType == BlockType.Air || 
+                   blockType == BlockType.Water || 
+                   blockType == BlockType.Glass || 
+                   blockType == BlockType.Leaves;
         }
 
         /// <summary>

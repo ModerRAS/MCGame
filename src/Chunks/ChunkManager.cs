@@ -34,8 +34,8 @@ namespace MCGame.Chunks
         private readonly CancellationTokenSource _cancellationToken;
 
         // 配置参数
-        private readonly int _loadRadius = 10;
-        private readonly int _unloadRadius = 15;
+        private readonly int _loadRadius = 5;  // 减少加载半径，避免生成过多区块
+        private readonly int _unloadRadius = 8;
         private readonly int _maxConcurrentGeneration = 4;
         private readonly int _maxConcurrentMeshing = 2;
 
@@ -82,76 +82,38 @@ namespace MCGame.Chunks
 
         /// <summary>
         /// 启动工作线程
+        /// 简化实现：暂时禁用后台工作线程，使用主线程处理
         /// </summary>
         private void StartWorkers()
         {
-            // 启动区块生成工作器
-            for (int i = 0; i < _generationWorkers.Length; i++)
-            {
-                _generationWorkers[i] = Task.Run(GenerationWorker);
-            }
-
-            // 启动网格生成工作器
-            for (int i = 0; i < _meshingWorkers.Length; i++)
-            {
-                _meshingWorkers[i] = Task.Run(MeshingWorker);
-            }
+            // 暂时禁用后台工作线程，避免与主线程竞争
+            // 工作将由主线程的ProcessGenerationQueue和ProcessMeshingQueue处理
+            Logger.Info("[WORKERS] Background workers disabled - using main thread processing");
         }
 
         /// <summary>
         /// 区块生成工作器
+        /// 简化实现：暂时禁用，避免与主线程竞争
         /// </summary>
         private async Task GenerationWorker()
         {
+            // 暂时禁用工作线程，避免与主线程竞争队列
             while (!_cancellationToken.IsCancellationRequested)
             {
-                if (_generationQueue.TryDequeue(out var chunkPos))
-                {
-                    try
-                    {
-                        var chunk = GetOrCreateChunk(chunkPos);
-                        if (chunk.State == ChunkState.Unloaded)
-                        {
-                            await GenerateChunkAsync(chunk);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error generating chunk {chunkPos}: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    await Task.Delay(10); // 避免CPU占用过高
-                }
+                await Task.Delay(1000); // 长时间延迟，减少CPU占用
             }
         }
 
         /// <summary>
         /// 网格生成工作器
+        /// 简化实现：暂时禁用，避免与主线程竞争
         /// </summary>
         private async Task MeshingWorker()
         {
+            // 暂时禁用工作线程，避免与主线程竞争队列
             while (!_cancellationToken.IsCancellationRequested)
             {
-                if (_meshingQueue.TryDequeue(out var chunk))
-                {
-                    try
-                    {
-                        if (chunk.IsDirty && chunk.State == ChunkState.Ready)
-                        {
-                            await GenerateChunkMeshAsync(chunk);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error meshing chunk {chunk.Position}: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    await Task.Delay(10); // 避免CPU占用过高
-                }
+                await Task.Delay(1000); // 长时间延迟，减少CPU占用
             }
         }
 
@@ -160,19 +122,42 @@ namespace MCGame.Chunks
         /// </summary>
         private async Task GenerateChunkAsync(Chunk chunk)
         {
-            chunk.State = ChunkState.Generating;
-
-            // 在主线程中生成地形（简化实现）
-            await Task.Run(() =>
+            try
             {
-                chunk.GenerateTerrain(_worldSeed);
-                chunk.State = ChunkState.Ready;
-                chunk.IsLoaded = true;
-                chunk.IsDirty = true;
+                chunk.State = ChunkState.Generating;
+                Logger.Info($"[ASYNC] Starting terrain generation for chunk {chunk.Position}");
 
-                // 加入网格生成队列
-                _meshingQueue.Enqueue(chunk);
-            });
+                // 在主线程中生成地形（简化实现）
+                await Task.Run(() =>
+                {
+                    try
+                    {
+                        Logger.Info($"[TERRAIN] Generating terrain for chunk {chunk.Position}...");
+                        chunk.GenerateTerrain(_worldSeed);
+                        chunk.State = ChunkState.Ready;
+                        chunk.IsLoaded = true;
+                        chunk.IsDirty = true;
+                        Logger.Info($"[TERRAIN] Terrain generated for chunk {chunk.Position}, added to meshing queue");
+
+                        // 加入网格生成队列
+                        _meshingQueue.Enqueue(chunk);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error($"[TERRAIN] Terrain generation failed for chunk {chunk.Position}: {ex.Message}");
+                        chunk.State = ChunkState.Unloaded;
+                        throw;
+                    }
+                });
+                
+                Logger.Info($"[ASYNC] Terrain generation completed for chunk {chunk.Position}");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"[ASYNC] GenerateChunkAsync failed for chunk {chunk.Position}: {ex.Message}");
+                chunk.State = ChunkState.Unloaded;
+                throw;
+            }
         }
 
         /// <summary>
@@ -180,18 +165,41 @@ namespace MCGame.Chunks
         /// </summary>
         private async Task GenerateChunkMeshAsync(Chunk chunk)
         {
-            chunk.State = ChunkState.Meshing;
-
-            await Task.Run(() =>
+            try
             {
-                var mesher = new ChunkMesher(_blockRegistry, _graphicsDevice);
-                chunk.Mesh = mesher.GenerateMesh(chunk);
-                chunk.IsMeshGenerated = true;
-                chunk.IsDirty = false;
-                chunk.State = ChunkState.Ready;
+                chunk.State = ChunkState.Meshing;
+                Logger.Debug($"Starting mesh generation for chunk {chunk.Position}");
 
-                Interlocked.Increment(ref _chunksMeshedThisFrame);
-            });
+                await Task.Run(() =>
+                {
+                    try
+                    {
+                        Logger.Info($"Generating mesh for chunk {chunk.Position}...");
+                        var mesher = new ChunkMesher(_blockRegistry, _graphicsDevice);
+                        chunk.Mesh = mesher.GenerateMesh(chunk);
+                        chunk.IsMeshGenerated = true;
+                        chunk.IsDirty = false;
+                        chunk.State = ChunkState.Ready;
+                        Logger.Info($"Mesh generated for chunk {chunk.Position}");
+
+                        Interlocked.Increment(ref _chunksMeshedThisFrame);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error($"Mesh generation failed for chunk {chunk.Position}: {ex.Message}");
+                        chunk.State = ChunkState.Ready;
+                        chunk.IsDirty = true; // 标记为脏以便重试
+                        throw;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"GenerateChunkMeshAsync failed for chunk {chunk.Position}: {ex.Message}");
+                chunk.State = ChunkState.Ready;
+                chunk.IsDirty = true; // 标记为脏以便重试
+                throw;
+            }
         }
 
         /// <summary>
@@ -199,39 +207,77 @@ namespace MCGame.Chunks
         /// </summary>
         public void Update(Vector3 playerPosition)
         {
+            var serilogLogger = Logger.GetSerilogLogger();
+            
             // 重置统计
             _chunksGeneratedThisFrame = 0;
             _chunksMeshedThisFrame = 0;
 
             // 计算玩家所在区块
             var playerChunkPos = ChunkPosition.FromWorldPosition(playerPosition, Chunk.SIZE);
+            serilogLogger?.Chunk("Updating chunk manager around player position {PlayerPos} -> {ChunkPos}", playerPosition, playerChunkPos);
 
             // 更新区块加载
+            serilogLogger?.Chunk("Updating chunk loading...");
+            Logger.Debug($"Updating chunk loading around player position {playerChunkPos}");
             UpdateChunkLoading(playerChunkPos);
 
             // 更新区块卸载
+            serilogLogger?.Chunk("Updating chunk unloading...");
             UpdateChunkUnloading(playerChunkPos);
 
+            // 处理生成队列
+            serilogLogger?.Chunk("Processing generation queue (size: {QueueSize})", _generationQueue.Count);
+            ProcessGenerationQueue();
+
+            // 处理网格生成队列
+            serilogLogger?.Chunk("Processing meshing queue (size: {QueueSize})", _meshingQueue.Count);
+            ProcessMeshingQueue();
+
             // 更新邻近区块引用
+            serilogLogger?.Chunk("Updating chunk neighbors...");
             UpdateChunkNeighbors();
+            
+            serilogLogger?.Chunk("Chunk manager update completed. Generated: {Generated}, Meshed: {Meshed}", _chunksGeneratedThisFrame, _chunksMeshedThisFrame);
         }
 
         /// <summary>
         /// 更新区块加载
+        /// 修复：限制每帧加载的区块数量，避免卡顿
         /// </summary>
         private void UpdateChunkLoading(ChunkPosition playerChunkPos)
         {
+            var serilogLogger = Logger.GetSerilogLogger();
+            
             // 计算需要加载的区块范围
             var chunksToLoad = GetChunksInRadius(playerChunkPos, _loadRadius);
+            
+            // 限制每帧加载的区块数量，避免卡顿
+            int maxChunksToLoadPerFrame = 50;
+            int chunksLoadedThisFrame = 0;
+            
+            serilogLogger?.Chunk("Evaluating {TotalChunks} chunks for loading, max {MaxPerFrame}", chunksToLoad.Count, maxChunksToLoadPerFrame);
 
             foreach (var chunkPos in chunksToLoad)
             {
+                if (chunksLoadedThisFrame >= maxChunksToLoadPerFrame)
+                {
+                    break;
+                }
+                
                 if (!_loadedChunks.ContainsKey(chunkPos))
                 {
+                    Logger.Debug($"Queueing chunk {chunkPos} for generation");
+                    // 先创建区块并添加到loadedChunks，避免重复排队
+                    var chunk = GetOrCreateChunk(chunkPos);
+                    _loadedChunks.TryAdd(chunkPos, chunk);
                     // 加入生成队列
                     _generationQueue.Enqueue(chunkPos);
+                    chunksLoadedThisFrame++;
                 }
             }
+            
+            serilogLogger?.Chunk("Queued {QueuedCount} chunks for generation this frame", chunksLoadedThisFrame);
         }
 
         /// <summary>
@@ -286,6 +332,126 @@ namespace MCGame.Chunks
 
                 chunk.UpdateNeighbors(neighbors);
             }
+        }
+
+        /// <summary>
+        /// 处理区块生成队列
+        /// 修复：确保区块被正确处理，避免队列竞争
+        /// </summary>
+        private void ProcessGenerationQueue()
+        {
+            var serilogLogger = Logger.GetSerilogLogger();
+            
+            // 每帧最多生成一定数量的区块
+            int maxPerFrame = 3;
+            int processed = 0;
+            int initialQueueSize = _generationQueue.Count;
+            
+            serilogLogger?.Chunk("Processing generation queue: {QueueSize} chunks to process", initialQueueSize);
+
+            while (_generationQueue.TryDequeue(out var chunkPos) && processed < maxPerFrame)
+            {
+                try
+                {
+                    // 检查区块是否已存在且已处理
+                    if (_loadedChunks.TryGetValue(chunkPos, out var existingChunk))
+                    {
+                        if (existingChunk.State == ChunkState.Ready || existingChunk.State == ChunkState.Meshing)
+                        {
+                            serilogLogger?.Chunk("Chunk {ChunkPos} already processed, skipping", chunkPos);
+                            continue;
+                        }
+                    }
+                    
+                    var chunk = GetOrCreateChunk(chunkPos);
+                    
+                    // 简化实现：使用同步生成
+                    Logger.Info($"[SYNC] Starting terrain generation for chunk {chunk.Position}");
+                    chunk.State = ChunkState.Generating;
+                    
+                    // 生成地形
+                    chunk.GenerateTerrain(_worldSeed);
+                    chunk.State = ChunkState.Ready;
+                    chunk.IsLoaded = true;
+                    chunk.IsDirty = true;
+                    Logger.Info($"[SYNC] Terrain generated for chunk {chunk.Position}, added to meshing queue");
+
+                    // 加入网格生成队列
+                    _meshingQueue.Enqueue(chunk);
+                    
+                    _chunksGeneratedThisFrame++;
+                    processed++;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to generate chunk at {chunkPos}: {ex.Message}");
+                    // 生成失败时从loadedChunks中移除，以便重试
+                    _loadedChunks.TryRemove(chunkPos, out _);
+                }
+            }
+            
+            serilogLogger?.Chunk("Generation queue processing completed: {Processed}/{InitialQueueSize} chunks processed", processed, initialQueueSize);
+        }
+
+        /// <summary>
+        /// 处理网格生成队列
+        /// 修复：确保网格被正确处理，避免重复处理
+        /// </summary>
+        private void ProcessMeshingQueue()
+        {
+            var serilogLogger = Logger.GetSerilogLogger();
+            
+            // 每帧最多生成一定数量的网格
+            int maxPerFrame = 3;
+            int processed = 0;
+            int initialQueueSize = _meshingQueue.Count;
+            
+            serilogLogger?.Chunk("Processing meshing queue: {QueueSize} chunks to process", initialQueueSize);
+
+            while (_meshingQueue.TryDequeue(out var chunk) && processed < maxPerFrame)
+            {
+                try
+                {
+                    // 检查区块是否已经生成网格
+                    if (chunk.IsMeshGenerated)
+                    {
+                        serilogLogger?.Chunk("Chunk {ChunkPos} already meshed, skipping", chunk.Position);
+                        continue;
+                    }
+                    
+                    // 检查区块状态
+                    if (chunk.State != ChunkState.Ready)
+                    {
+                        serilogLogger?.Chunk("Chunk {ChunkPos} not ready for meshing (state: {State}), requeuing", chunk.Position, chunk.State);
+                        _meshingQueue.Enqueue(chunk); // 重新排队
+                        continue;
+                    }
+                    
+                    // 简化实现：使用同步网格生成
+                    Logger.Info($"[SYNC] Starting mesh generation for chunk {chunk.Position}");
+                    chunk.State = ChunkState.Meshing;
+                    
+                    // 生成网格
+                    var mesher = new ChunkMesher(_blockRegistry, _graphicsDevice);
+                    chunk.Mesh = mesher.GenerateMesh(chunk);
+                    chunk.IsMeshGenerated = true;
+                    chunk.IsDirty = false;
+                    chunk.State = ChunkState.Ready;
+                    Logger.Info($"[SYNC] Mesh generated for chunk {chunk.Position}");
+                    
+                    _chunksMeshedThisFrame++;
+                    processed++;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to generate mesh for chunk at {chunk.Position}: {ex.Message}");
+                    // 网格生成失败时标记为脏以便重试
+                    chunk.IsDirty = true;
+                    chunk.State = ChunkState.Ready;
+                }
+            }
+            
+            serilogLogger?.Chunk("Meshing queue processing completed: {Processed}/{InitialQueueSize} chunks processed", processed, initialQueueSize);
         }
 
         /// <summary>
@@ -401,16 +567,40 @@ namespace MCGame.Chunks
         /// </summary>
         public List<Chunk> GetVisibleChunks(FrustumCulling frustumCulling)
         {
+            var serilogLogger = Logger.GetSerilogLogger();
             var visibleChunks = new List<Chunk>();
 
             // ConcurrentDictionary是线程安全的，可以直接遍历
+            serilogLogger?.Chunk("Finding visible chunks from {LoadedCount} loaded chunks...", _loadedChunks.Count);
+            
+            int totalChunks = 0;
+            int loadedChunks = 0;
+            int meshedChunks = 0;
+            int frustumVisibleChunks = 0;
+
             foreach (var chunk in _loadedChunks.Values)
             {
-                if (chunk.IsLoaded && chunk.IsMeshGenerated && frustumCulling.IsChunkVisible(chunk))
+                totalChunks++;
+                
+                if (chunk.IsLoaded)
                 {
-                    visibleChunks.Add(chunk);
+                    loadedChunks++;
+                    
+                    if (chunk.IsMeshGenerated)
+                    {
+                        meshedChunks++;
+                        
+                        if (frustumCulling.IsChunkVisible(chunk))
+                        {
+                            frustumVisibleChunks++;
+                            visibleChunks.Add(chunk);
+                        }
+                    }
                 }
             }
+            
+            serilogLogger?.Chunk("Visibility stats: Total={Total}, Loaded={Loaded}, Meshed={Meshed}, FrustumVisible={FrustumVisible}, FinalVisible={FinalVisible}", 
+                totalChunks, loadedChunks, meshedChunks, frustumVisibleChunks, visibleChunks.Count);
 
             return visibleChunks;
         }

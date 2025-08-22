@@ -72,13 +72,20 @@ namespace MCGame.Core
         {
             try
             {
+                // 初始化Serilog日志系统
+                Logger.Initialize(useSerilog: true);
+                var serilogLogger = Logger.GetSerilogLogger();
+                serilogLogger?.Info("=== MCGame Starting ===");
+                serilogLogger?.MemoryUsage();
+                
                 Logger.Info("Initializing MCGame...");
                 
                 // 创建图形设备管理器
                 try
                 {
+                    Logger.Info("Creating Graphics Device Manager...");
                     _graphics = new CustomGraphicsDeviceManager(this);
-                    Logger.Debug("CustomGraphicsDeviceManager created successfully");
+                    Logger.Info("CustomGraphicsDeviceManager created successfully");
                 }
                 catch (Exception ex)
                 {
@@ -113,6 +120,10 @@ namespace MCGame.Core
         {
             try
             {
+                var serilogLogger = Logger.GetSerilogLogger();
+                serilogLogger?.Info("Starting game initialization...");
+                serilogLogger?.MemoryUsage();
+                
                 Logger.Info("Starting game initialization...");
                 
                 // 设置图形设备参数
@@ -121,12 +132,14 @@ namespace MCGame.Core
                 // 尝试使用自定义图形设备管理器
                 if (_graphics != null)
                 {
+                    Logger.Debug("Trying to create graphics device...");
                     bool deviceConfigured = _graphics.TryCreateDevice();
                     if (!deviceConfigured)
                     {
                         Logger.Fatal("Failed to configure any graphics device");
                         throw new InvalidOperationException("No suitable graphics device configuration found");
                     }
+                    serilogLogger?.Info("Graphics device configured successfully");
                 }
                 
                 DetectGraphicsCapabilities();
@@ -140,15 +153,20 @@ namespace MCGame.Core
                 Logger.Debug("Setting up world settings...");
                 _worldSettings = WorldSettings.Default;
                 _worldSettings.RenderDistance = 10;
+                serilogLogger?.Info($"World settings configured with render distance: {_worldSettings.RenderDistance}");
 
                 // 初始化核心系统
+                serilogLogger?.Info("Initializing Core Systems...");
                 Logger.Debug("Initializing core systems...");
                 InitializeCoreSystems();
+                serilogLogger?.Info("Core Systems initialized successfully");
 
                 // 初始化输入处理
                 Logger.Debug("Initializing input handling...");
                 InitializeInput();
 
+                serilogLogger?.Info("Game initialization completed successfully");
+                serilogLogger?.MemoryUsage();
                 Logger.Info("Game initialization completed successfully");
                 
                 base.Initialize();
@@ -314,13 +332,13 @@ namespace MCGame.Core
 
                 // 初始化玩家控制器
                 Logger.Debug("Creating player controller...");
-                var initialPosition = new Vector3(0, 65, 0); // 在地面上方
+                var initialPosition = new Vector3(0, 130, 0); // 在地形上方（地形高度约128）
                 _playerController = new PlayerController(GraphicsDevice, initialPosition);
                 Logger.Info($"Player controller initialized at position {initialPosition}");
 
                 // 初始化渲染管理器
                 Logger.Debug("Creating render manager...");
-                _renderManager = new RenderManager(GraphicsDevice);
+                _renderManager = new RenderManager(GraphicsDevice, _blockRegistry);
 
                 // 配置渲染选项
                 Logger.Debug("Configuring rendering options...");
@@ -472,6 +490,7 @@ namespace MCGame.Core
                 _playerController.Update(gameTime);
 
                 // 更新区块管理器
+                Logger.Debug($"Updating chunk manager at player position {_playerController.Player.Position}");
                 _chunkManager.Update(_playerController.Player.Position);
 
                 // 更新相机
@@ -624,7 +643,7 @@ namespace MCGame.Core
         {
             try
             {
-                // 清空屏幕
+                // 清空屏幕 - 使用天空蓝色
                 GraphicsDevice.Clear(new Color(135, 206, 235)); // 天空蓝
 
                 if (_isInitialized)
@@ -661,6 +680,16 @@ namespace MCGame.Core
         {
             // 获取可见区块
             var visibleChunks = _chunkManager.GetVisibleChunks(_renderManager.FrustumCulling);
+            
+            // 添加调试信息
+            if (visibleChunks.Count == 0)
+            {
+                Logger.Debug("No visible chunks found for rendering");
+            }
+            else
+            {
+                Logger.Debug($"Rendering {visibleChunks.Count} visible chunks");
+            }
 
             // 渲染区块
             _renderManager.RenderChunks(visibleChunks);
@@ -693,6 +722,11 @@ namespace MCGame.Core
         private void RenderDebugInfo()
         {
                   
+            // 获取玩家所在区块的信息用于调试
+            var playerChunkPos = ChunkPosition.FromWorldPosition(_playerController.Player.Position, Chunk.SIZE);
+            var playerChunk = _chunkManager.GetChunk(playerChunkPos);
+            var playerBlock = _chunkManager.GetBlock(_playerController.Player.Position);
+            
             var debugLines = new List<string>
             {
                 $"MCGame Debug Mode",
@@ -700,8 +734,14 @@ namespace MCGame.Core
                 $"Frame Time: {_frameTime:F2}ms",
                 $"",
                 $"Player Position: {_playerController.Player.Position}",
+                $"Player Chunk: {playerChunkPos}",
+                $"Player Block: {playerBlock.Type}",
                 $"Player Yaw: {_playerController.Player.Yaw:F2}",
                 $"Player Pitch: {_playerController.Player.Pitch:F2}",
+                $"",
+                $"Player Chunk Loaded: {playerChunk?.IsLoaded ?? false}",
+                $"Player Chunk Meshed: {playerChunk?.IsMeshGenerated ?? false}",
+                $"Player Chunk State: {playerChunk?.State}",
                 $"",
                 $"Render Distance: {_renderDistance:F0}",
                 $"Draw Calls: {_renderStats.DrawCalls}",

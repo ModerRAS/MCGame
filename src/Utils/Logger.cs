@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading;
+using Serilog;
 
 namespace MCGame.Utils
 {
@@ -257,26 +258,306 @@ namespace MCGame.Utils
             }
         }
 
-        public static void Initialize(string logFilePath = null, LogLevel minLevel = LogLevel.Debug)
+        public static void Initialize(string logFilePath = null, LogLevel minLevel = LogLevel.Debug, bool useSerilog = true)
         {
             try
             {
-                if (string.IsNullOrEmpty(logFilePath))
+                if (useSerilog)
                 {
-                    logFilePath = Path.Combine(AppContext.BaseDirectory, "logs", $"mcgame_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+                    // 优先使用Serilog
+                    Instance = new SerilogLogger();
+                    Console.WriteLine("Serilog logger initialized successfully");
                 }
+                else
+                {
+                    // 回退到传统日志
+                    if (string.IsNullOrEmpty(logFilePath))
+                    {
+                        logFilePath = Path.Combine(AppContext.BaseDirectory, "logs", $"mcgame_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+                    }
 
-                var consoleLogger = new ConsoleLogger { MinLevel = LogLevel.Info };
-                var fileLogger = new FileLogger(logFilePath) { MinLevel = minLevel };
+                    var consoleLogger = new ConsoleLogger { MinLevel = LogLevel.Info };
+                    var fileLogger = new FileLogger(logFilePath) { MinLevel = minLevel };
 
-                Instance = new CompositeLogger(consoleLogger, fileLogger);
-                
-                Console.WriteLine("Logger initialized successfully");
+                    Instance = new CompositeLogger(consoleLogger, fileLogger);
+                    
+                    Console.WriteLine("Traditional logger initialized successfully");
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed to initialize logger: {ex.Message}");
                 Instance = new ConsoleLogger { MinLevel = LogLevel.Debug };
+            }
+        }
+
+        /// <summary>
+        /// 从IServiceProvider获取日志实例
+        /// </summary>
+        public static ILogger GetLogger(IServiceProvider serviceProvider)
+        {
+            if (serviceProvider == null)
+            {
+                return Instance;
+            }
+
+            // 尝试从服务容器获取日志实例
+            var logger = serviceProvider.GetService(typeof(ILogger)) as ILogger;
+            return logger ?? Instance;
+        }
+
+        /// <summary>
+        /// 获取SerilogLogger实例（如果可用）
+        /// </summary>
+        public static SerilogLogger GetSerilogLogger()
+        {
+            return Instance as SerilogLogger;
+        }
+    }
+
+    /// <summary>
+    /// Serilog日志记录器
+    /// 提供结构化日志、文件日志、控制台日志等高级功能
+    /// </summary>
+    public class SerilogLogger : BaseLogger
+    {
+        private readonly Serilog.ILogger _logger;
+        private static readonly string _logDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
+        private static readonly string _logFile = Path.Combine(_logDirectory, $"mcgame_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+
+        public SerilogLogger()
+        {
+            try
+            {
+                // 确保日志目录存在
+                Directory.CreateDirectory(_logDirectory);
+                
+                // 配置Serilog
+                _logger = new Serilog.LoggerConfiguration()
+                    .MinimumLevel.Debug()
+                    .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Information)
+                    .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Information)
+                    .Enrich.FromLogContext()
+                    .Enrich.WithProperty("ThreadId", "")
+                    .Enrich.WithProperty("ProcessId", "")
+                    .Enrich.WithProperty("MachineName", "")
+                    .WriteTo.Console(
+                        outputTemplate: "[{Timestamp:HH:mm:ss.fff} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
+                    .WriteTo.File(
+                        path: _logFile,
+                        rollingInterval: Serilog.RollingInterval.Hour,
+                        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{SourceContext}] [{ThreadId}] {Message:lj}{NewLine}{Exception}")
+                    .WriteTo.File(
+                        path: Path.Combine(_logDirectory, "mcgame_debug.log"),
+                        restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Debug,
+                        rollingInterval: Serilog.RollingInterval.Day,
+                        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{SourceContext}] [{ThreadId}] {Message:lj}{NewLine}{Exception}")
+                    .CreateLogger();
+                
+                _logger.Information("Serilog logger initialized");
+                _logger.Information("Log file: {LogFile}", _logFile);
+            }
+            catch (Exception ex)
+            {
+                // 如果Serilog初始化失败，回退到简单日志
+                Console.WriteLine($"Failed to initialize Serilog logger: {ex.Message}");
+                _logger = null;
+            }
+        }
+
+        protected override void WriteLog(string message)
+        {
+            if (_logger != null)
+            {
+                try
+                {
+                    _logger.Information(message);
+                }
+                catch
+                {
+                    // 如果Serilog写入失败，回退到控制台
+                    Console.WriteLine(message);
+                }
+            }
+            else
+            {
+                Console.WriteLine(message);
+            }
+        }
+
+        public override void Debug(string message)
+        {
+            if (_logger != null)
+            {
+                _logger.Debug(message);
+            }
+            else
+            {
+                base.Debug(message);
+            }
+        }
+
+        public override void Info(string message)
+        {
+            if (_logger != null)
+            {
+                _logger.Information(message);
+            }
+            else
+            {
+                base.Info(message);
+            }
+        }
+
+        public override void Warning(string message)
+        {
+            if (_logger != null)
+            {
+                _logger.Warning(message);
+            }
+            else
+            {
+                base.Warning(message);
+            }
+        }
+
+        public override void Error(string message, Exception exception = null)
+        {
+            if (_logger != null)
+            {
+                if (exception != null)
+                {
+                    _logger.Error(exception, message);
+                }
+                else
+                {
+                    _logger.Error(message);
+                }
+            }
+            else
+            {
+                base.Error(message, exception);
+            }
+        }
+
+        public override void Fatal(string message, Exception exception = null)
+        {
+            if (_logger != null)
+            {
+                if (exception != null)
+                {
+                    _logger.Fatal(exception, message);
+                }
+                else
+                {
+                    _logger.Fatal(message);
+                }
+            }
+            else
+            {
+                base.Fatal(message, exception);
+            }
+        }
+
+        /// <summary>
+        /// 记录性能信息
+        /// </summary>
+        public void Performance(string operation, long elapsedMs)
+        {
+            if (_logger != null)
+            {
+                _logger.Information("[PERF] {Operation} completed in {ElapsedMs}ms", operation, elapsedMs);
+            }
+        }
+
+        /// <summary>
+        /// 记录渲染信息
+        /// </summary>
+        public void Render(string message, params object[] args)
+        {
+            if (_logger != null)
+            {
+                try
+                {
+                    if (args.Length > 0)
+                    {
+                        _logger.Information("[RENDER] " + message, args);
+                    }
+                    else
+                    {
+                        _logger.Information("[RENDER] {Message}", message);
+                    }
+                }
+                catch (FormatException)
+                {
+                    // 如果格式化失败，回退到简单日志
+                    _logger.Information("[RENDER] {Message}", message);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 记录区块信息
+        /// </summary>
+        public void Chunk(string message, params object[] args)
+        {
+            if (_logger != null)
+            {
+                try
+                {
+                    if (args.Length > 0)
+                    {
+                        _logger.Information("[CHUNK] " + message, args);
+                    }
+                    else
+                    {
+                        _logger.Information("[CHUNK] {Message}", message);
+                    }
+                }
+                catch (FormatException)
+                {
+                    // 如果格式化失败，回退到简单日志
+                    _logger.Information("[CHUNK] {Message}", message);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 记录内存使用情况
+        /// </summary>
+        public void MemoryUsage()
+        {
+            if (_logger != null)
+            {
+                try
+                {
+                    var process = System.Diagnostics.Process.GetCurrentProcess();
+                    var memoryMB = process.WorkingSet64 / 1024 / 1024;
+                    _logger.Information("[MEMORY] Usage: {MemoryMB}MB", memoryMB);
+                }
+                catch
+                {
+                    // 忽略内存日志错误
+                }
+            }
+        }
+
+        /// <summary>
+        /// 关闭日志系统
+        /// </summary>
+        public void Shutdown()
+        {
+            if (_logger != null)
+            {
+                try
+                {
+                    _logger.Information("Serilog logger shutdown");
+                    Serilog.Log.CloseAndFlush();
+                }
+                catch
+                {
+                    // 忽略关闭错误
+                }
             }
         }
     }

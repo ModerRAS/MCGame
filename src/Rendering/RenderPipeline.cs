@@ -2,6 +2,8 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MCGame.Core;
 using MCGame.Chunks;
+using MCGame.Blocks;
+using MCGame.Utils;
 using System;
 using System.Collections.Generic;
 
@@ -38,6 +40,9 @@ namespace MCGame.Rendering
 
         public RenderPipeline(GraphicsDevice graphicsDevice)
         {
+            var serilogLogger = Logger.GetSerilogLogger();
+            serilogLogger?.Info("Creating RenderPipeline...");
+            
             _graphicsDevice = graphicsDevice;
             _renderPasses = new List<IRenderPass>();
             _opaqueBatches = new List<RenderBatch>();
@@ -45,6 +50,7 @@ namespace MCGame.Rendering
             _stats = new RenderStats();
             _statsDirty = false;
 
+            serilogLogger?.Info("Initializing render effects...");
             InitializeEffects();
             InitializeRenderStates();
             InitializeRenderPasses();
@@ -215,6 +221,10 @@ namespace MCGame.Rendering
         /// </summary>
         public void Render()
         {
+            var serilogLogger = Logger.GetSerilogLogger();
+            serilogLogger?.Render("Starting render pipeline execution...");
+            serilogLogger?.Render("Opaque batches: {Count}, Transparent batches: {Count}", _opaqueBatches.Count, _transparentBatches.Count);
+            
             // 设置渲染状态
             _graphicsDevice.RasterizerState = _rasterizerState;
             _graphicsDevice.DepthStencilState = _depthStencilState;
@@ -231,15 +241,20 @@ namespace MCGame.Rendering
             _stats.Triangles = 0;
 
             // 执行渲染阶段
+            serilogLogger?.Render("Executing {Count} render passes...", _renderPasses.Count);
             foreach (var pass in _renderPasses)
             {
+                serilogLogger?.Render("Executing render pass: {PassName}", pass.Name);
                 pass.Begin(_graphicsDevice);
 
                 var batches = pass.Name == "Opaque" ? _opaqueBatches : _transparentBatches;
+                serilogLogger?.Render("Pass {PassName} has {BatchCount} batches", pass.Name, batches.Count);
                 pass.Execute(_graphicsDevice, batches);
 
                 pass.End(_graphicsDevice);
             }
+            
+            serilogLogger?.Render("Render pipeline completed. Draw calls: {DrawCalls}, Triangles: {Triangles}", _stats.DrawCalls, _stats.Triangles);
         }
 
         /// <summary>
@@ -382,13 +397,15 @@ namespace MCGame.Rendering
         private readonly RenderPipeline _renderPipeline;
         private readonly FrustumCulling _frustumCulling;
         private readonly GraphicsDevice _graphicsDevice;
+        private readonly BlockRegistry _blockRegistry;
 
         public RenderPipeline Pipeline => _renderPipeline;
         public FrustumCulling FrustumCulling => _frustumCulling;
 
-        public RenderManager(GraphicsDevice graphicsDevice)
+        public RenderManager(GraphicsDevice graphicsDevice, BlockRegistry blockRegistry)
         {
             _graphicsDevice = graphicsDevice;
+            _blockRegistry = blockRegistry;
             _renderPipeline = new RenderPipeline(graphicsDevice);
             _frustumCulling = new FrustumCulling();
         }
@@ -407,24 +424,34 @@ namespace MCGame.Rendering
         /// </summary>
         public void RenderChunks(List<Chunk> chunks)
         {
+            var serilogLogger = Logger.GetSerilogLogger();
+            serilogLogger?.Render("RenderChunks called with {Count} chunks", chunks.Count);
+            
             _renderPipeline.ClearBatches();
 
             // 创建默认材质
             var defaultMaterial = new Material
             {
-                Texture = null,
+                Texture = _blockRegistry.GetBlockTexture(BlockType.Stone),
                 Effect = _renderPipeline.GetBasicEffect(),
                 IsTransparent = false,
                 Name = "Default"
             };
 
+            int validMeshCount = 0;
+            int visibleChunkCount = 0;
+            int batchedChunkCount = 0;
+            
             // 添加区块到渲染批次
+            serilogLogger?.Render("Processing chunks for rendering...");
             foreach (var chunk in chunks)
             {
                 if (chunk.Mesh != null && chunk.Mesh.VertexCount > 0)
                 {
+                    validMeshCount++;
                     if (_frustumCulling.IsChunkVisible(chunk))
                     {
+                        visibleChunkCount++;
                         var batch = new RenderBatch
                         {
                             Mesh = chunk.Mesh,
@@ -438,11 +465,16 @@ namespace MCGame.Rendering
                         };
 
                         _renderPipeline.AddRenderBatch(batch);
+                        batchedChunkCount++;
                     }
                 }
             }
+            
+            serilogLogger?.Render("Chunk rendering stats: {ValidMeshes} valid meshes, {VisibleChunks} visible chunks, {BatchedChunks} batched chunks", validMeshCount, visibleChunkCount, batchedChunkCount);
+            Logger.Debug($"Chunk rendering stats: {validMeshCount} valid meshes, {visibleChunkCount} visible chunks, {batchedChunkCount} batched chunks");
 
             // 执行渲染
+            serilogLogger?.Render("Executing render pipeline...");
             _renderPipeline.Render();
         }
 

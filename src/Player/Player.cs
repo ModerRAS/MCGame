@@ -221,23 +221,25 @@ namespace MCGame.Player
         /// </summary>
         private void ApplyPhysics(float deltaTime)
         {
-            // 应用重力
-            _velocity.Y += _gravity * deltaTime;
+            // 应用重力 - 临时禁用，让玩家可以自由移动
+            // TODO: 实现与地形系统的碰撞检测
+            // _velocity.Y += _gravity * deltaTime;
             
             // 更新位置
             _position += _velocity * deltaTime;
             
-            // 简单的地面检测
-            if (_position.Y <= 1.0f)
-            {
-                _position.Y = 1.0f;
-                _velocity.Y = 0f;
-                _isGrounded = true;
-            }
-            else
-            {
-                _isGrounded = false;
-            }
+            // 简单的地面检测 - 临时禁用，让玩家可以自由移动
+            // TODO: 实现与地形系统的碰撞检测
+            // if (_position.Y <= 1.0f)
+            // {
+            //     _position.Y = 1.0f;
+            //     _velocity.Y = 0f;
+            //     _isGrounded = true;
+            // }
+            // else
+            // {
+            //     _isGrounded = false;
+            // }
             
             _viewMatrixDirty = true;
         }

@@ -18,22 +18,25 @@ namespace MCGame.Rendering
         private VertexBuffer _vertexBuffer;
         private IndexBuffer _indexBuffer;
         private VertexPositionNormalTexture[] _vertices;
-        private ushort[] _indices;
+        private uint[] _indices; // 使用32位索引避免溢出
 
         // 网格属性
-        public int VertexCount => _vertices?.Length ?? 0;
-        public int IndexCount => _indices?.Length ?? 0;
+        private int _vertexCount = 0;
+        private int _indexCount = 0;
+        
+        public int VertexCount => _vertexCount;
+        public int IndexCount => _indexCount;
         public int TriangleCount => IndexCount / 3;
         public bool IsDisposed { get; private set; }
 
-        // 性能优化：避免频繁重新分配
-        private const int MAX_VERTICES = 65536; // 16位索引限制
-        private const int MAX_INDICES = 65536;
+        // 性能优化：使用32位索引避免缓冲区溢出
+        private const int MAX_VERTICES = 200000; // 增加顶点限制
+        private const int MAX_INDICES = 300000;
 
         public ChunkMesh(GraphicsDevice graphicsDevice)
         {
             _vertices = new VertexPositionNormalTexture[1024];
-            _indices = new ushort[1024];
+            _indices = new uint[1024];
         }
 
         /// <summary>
@@ -41,39 +44,41 @@ namespace MCGame.Rendering
         /// </summary>
         public void AddVertex(Vector3 position, Vector3 normal, Vector2 textureCoord)
         {
-            if (_vertices.Length >= MAX_VERTICES)
+            if (_vertexCount >= MAX_VERTICES)
             {
                 throw new InvalidOperationException("Vertex buffer overflow");
             }
 
             // 扩展数组如果需要
-            if (_vertices.Length <= VertexCount)
+            if (_vertices.Length <= _vertexCount)
             {
                 Array.Resize(ref _vertices, Math.Min(_vertices.Length * 2, MAX_VERTICES));
             }
 
-            _vertices[VertexCount] = new VertexPositionNormalTexture(position, normal, textureCoord);
+            _vertices[_vertexCount] = new VertexPositionNormalTexture(position, normal, textureCoord);
+            _vertexCount++;
         }
 
         /// <summary>
         /// 添加三角形
         /// </summary>
-        public void AddTriangle(ushort index1, ushort index2, ushort index3)
+        public void AddTriangle(uint index1, uint index2, uint index3)
         {
-            if (_indices.Length + 3 > MAX_INDICES)
+            if (_indexCount + 3 > MAX_INDICES)
             {
                 throw new InvalidOperationException("Index buffer overflow");
             }
 
             // 扩展数组如果需要
-            if (_indices.Length <= IndexCount + 3)
+            if (_indices.Length <= _indexCount + 3)
             {
                 Array.Resize(ref _indices, Math.Min(_indices.Length * 2, MAX_INDICES));
             }
 
-            _indices[IndexCount] = index1;
-            _indices[IndexCount + 1] = index2;
-            _indices[IndexCount + 2] = index3;
+            _indices[_indexCount] = index1;
+            _indices[_indexCount + 1] = index2;
+            _indices[_indexCount + 2] = index3;
+            _indexCount += 3;
         }
 
         /// <summary>
@@ -109,10 +114,10 @@ namespace MCGame.Rendering
                 BufferUsage.WriteOnly
             );
 
-            // 创建索引缓冲区
+            // 创建索引缓冲区 - 使用32位索引避免溢出
             _indexBuffer = new IndexBuffer(
                 graphicsDevice,
-                IndexElementSize.SixteenBits,
+                IndexElementSize.ThirtyTwoBits,
                 IndexCount,
                 BufferUsage.WriteOnly
             );
@@ -155,8 +160,10 @@ namespace MCGame.Rendering
         public void Clear()
         {
             // 重置计数器
-            Array.Clear(_vertices, 0, VertexCount);
-            Array.Clear(_indices, 0, IndexCount);
+            _vertexCount = 0;
+            _indexCount = 0;
+            Array.Clear(_vertices, 0, _vertices.Length);
+            Array.Clear(_indices, 0, _indices.Length);
         }
 
         /// <summary>
@@ -306,6 +313,13 @@ namespace MCGame.Rendering
             {
                 if (!batch.Material.IsTransparent && batch.Mesh != null)
                 {
+                    // 设置纹理到BasicEffect
+                    if (batch.Material.Effect is BasicEffect basicEffect && batch.Material.Texture != null)
+                    {
+                        basicEffect.Texture = batch.Material.Texture;
+                        basicEffect.TextureEnabled = true;
+                    }
+                    
                     batch.Mesh.Draw(graphicsDevice, batch.Material.Effect);
                 }
             }
@@ -328,6 +342,13 @@ namespace MCGame.Rendering
             {
                 if (batch.Material.IsTransparent && batch.Mesh != null)
                 {
+                    // 设置纹理到BasicEffect
+                    if (batch.Material.Effect is BasicEffect basicEffect && batch.Material.Texture != null)
+                    {
+                        basicEffect.Texture = batch.Material.Texture;
+                        basicEffect.TextureEnabled = true;
+                    }
+                    
                     batch.Mesh.Draw(graphicsDevice, batch.Material.Effect);
                 }
             }

@@ -309,7 +309,8 @@ namespace MCGame.WorldGeneration
         /// <returns>区块数据数组</returns>
         public byte[,,] GenerateChunk(int chunkX, int chunkZ, int chunkSize = 16)
         {
-            var chunkData = new byte[chunkSize, chunkSize, chunkSize];
+            // 修改为支持完整高度的区块数据格式：16x256x16
+            var chunkData = new byte[chunkSize, 256, chunkSize];
             int worldX = chunkX * chunkSize;
             int worldZ = chunkZ * chunkSize;
 
@@ -326,8 +327,8 @@ namespace MCGame.WorldGeneration
                     // 获取生物群系
                     BiomeType biome = _biomeNoise.GetBiomeType(worldPosX, worldPosZ);
 
-                    // 生成地形
-                    for (int y = 0; y < chunkSize; y++)
+                    // 生成地形 - 现在支持完整高度范围（0-255）
+                    for (int y = 0; y < 256; y++)
                     {
                         int worldY = y;
                         
@@ -361,8 +362,8 @@ namespace MCGame.WorldGeneration
                             chunkData[x, y, z] = (byte)BlockType.Air;
                         }
 
-                        // 生成洞穴
-                        if (ShouldGenerateCave(worldPosX, worldY, worldPosZ))
+                        // 生成洞穴 - 只在合理的Y范围内生成
+                        if (worldY > 5 && worldY < terrainHeight && ShouldGenerateCave(worldPosX, worldY, worldPosZ))
                         {
                             chunkData[x, y, z] = (byte)BlockType.Air;
                         }

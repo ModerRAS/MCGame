@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using MCGame.Blocks;
 using MCGame.Core;
 using MCGame.Chunks;
+using MCGame.Utils;
 using System;
 using System.Collections.Generic;
 
@@ -82,6 +83,9 @@ namespace MCGame.Rendering
                 UpdateVisibilityCache(chunk);
             }
 
+            int visibleBlocks = 0;
+            int visibleFaces = 0;
+
             // 遍历所有方块，生成可见面
             for (int x = 0; x < Chunk.SIZE; x++)
             {
@@ -92,11 +96,34 @@ namespace MCGame.Rendering
                         var block = chunk.GetBlock(x, y, z);
                         if (block.Type != BlockType.Air && _blockRegistry.ShouldRenderFace(block.Type))
                         {
+                            visibleBlocks++;
+                            // 检查六个方向的可见性
+                            if (chunk.IsFaceVisible(x, y, z, Direction.Up)) visibleFaces++;
+                            if (chunk.IsFaceVisible(x, y, z, Direction.Down)) visibleFaces++;
+                            if (chunk.IsFaceVisible(x, y, z, Direction.North)) visibleFaces++;
+                            if (chunk.IsFaceVisible(x, y, z, Direction.South)) visibleFaces++;
+                            if (chunk.IsFaceVisible(x, y, z, Direction.East)) visibleFaces++;
+                            if (chunk.IsFaceVisible(x, y, z, Direction.West)) visibleFaces++;
+                            
                             AddVisibleFaces(chunk, x, y, z, block);
                         }
                     }
                 }
             }
+            
+            // 添加详细的调试信息
+            Logger.Debug($"Chunk {chunk.Position}: Processing {visibleBlocks} visible blocks with {visibleFaces} visible faces");
+            Logger.Debug($"Chunk {chunk.Position}: ShouldRenderFace for Stone = {_blockRegistry.ShouldRenderFace(BlockType.Stone)}");
+            Logger.Debug($"Chunk {chunk.Position}: ShouldRenderFace for Grass = {_blockRegistry.ShouldRenderFace(BlockType.Grass)}");
+            Logger.Debug($"Chunk {chunk.Position}: ShouldRenderFace for Dirt = {_blockRegistry.ShouldRenderFace(BlockType.Dirt)}");
+            Logger.Debug($"Chunk {chunk.Position}: ShouldRenderFace for Air = {_blockRegistry.ShouldRenderFace(BlockType.Air)}");
+            
+            // 添加调试信息
+            if (visibleBlocks == 0)
+            {
+                Logger.Debug($"Chunk {chunk.Position} has no visible blocks!");
+            }
+            Logger.Debug($"Chunk {chunk.Position}: {visibleBlocks} visible blocks, {visibleFaces} visible faces, {_vertices.Count} vertices, {_indices.Count} indices");
 
             // 创建网格对象
             var mesh = new ChunkMesh(_graphicsDevice);
@@ -107,10 +134,12 @@ namespace MCGame.Rendering
                 mesh.AddVertex(_vertices[i].Position, _vertices[i].Normal, _vertices[i].TextureCoordinate);
             }
             
-            for (int i = 0; i < _indices.Count; i++)
+            for (int i = 0; i < _indices.Count; i += 3)
             {
-                mesh.AddTriangle(_indices[i], _indices[i + 1], _indices[i + 2]);
-                i += 2; // 跳过已处理的三角形
+                if (i + 2 < _indices.Count)
+                {
+                    mesh.AddTriangle(_indices[i], _indices[i + 1], _indices[i + 2]);
+                }
             }
             
             // 构建GPU缓冲区
@@ -196,6 +225,12 @@ namespace MCGame.Rendering
             
             // 添加面到网格
             AddQuadToMesh(faceVertices, _faceNormals[(int)direction], _faceUVs, blockColor);
+            
+            // 调试信息：每添加100个面输出一次
+            if (_vertices.Count % 400 == 0) // 每个面4个顶点
+            {
+                Logger.Debug($"Chunk {chunk.Position}: Added face for {block.Type} at ({x},{y},{z}) direction {direction}, total vertices: {_vertices.Count}");
+            }
         }
 
         /// <summary>

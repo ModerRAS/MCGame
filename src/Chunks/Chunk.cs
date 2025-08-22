@@ -3,6 +3,7 @@ using MCGame.Core;
 using MCGame.Rendering;
 using MCGame.Blocks;
 using MCGame.WorldGeneration;
+using MCGame.Utils;
 using System;
 using System.Collections.Generic;
 
@@ -200,6 +201,7 @@ namespace MCGame.Chunks
             var chunkData = worldGenerator.GenerateChunk(Position.X, Position.Z, SIZE);
             
             // 将生成的数据转换为方块数据
+            int nonAirBlocks = 0;
             for (int x = 0; x < SIZE; x++)
             {
                 for (int y = 0; y < HEIGHT; y++)
@@ -208,11 +210,19 @@ namespace MCGame.Chunks
                     {
                         var blockType = (BlockType)chunkData[x, y, z];
                         _blocks[x, y, z] = new BlockData(blockType, 0);
+                        
+                        if (blockType != BlockType.Air)
+                        {
+                            nonAirBlocks++;
+                        }
                     }
                 }
             }
             
             IsDirty = true;
+            
+            // 添加调试信息
+            Logger.Debug($"Chunk {Position}: Generated {nonAirBlocks} non-air blocks out of {VOLUME} total blocks");
         }
 
         
@@ -273,8 +283,15 @@ namespace MCGame.Chunks
                 switch (direction)
                 {
                     case Direction.Up:
+                        if (neighborY < HEIGHT)
+                            return neighborChunk.GetBlock(neighborX, neighborY, neighborZ);
+                        else
+                            return BlockData.Empty;
                     case Direction.Down:
-                        return neighborChunk.GetBlock(neighborX, neighborY, neighborZ);
+                        if (neighborY >= 0)
+                            return neighborChunk.GetBlock(neighborX, neighborY, neighborZ);
+                        else
+                            return BlockData.Empty;
                     case Direction.North:
                         return neighborChunk.GetBlock(neighborX, neighborY, SIZE - 1);
                     case Direction.South:
